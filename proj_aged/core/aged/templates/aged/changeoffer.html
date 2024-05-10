@@ -1,0 +1,46 @@
+{% extends 'aged/base.html' %}
+
+{% block pagename %} Change offer {% endblock %}
+
+{% block body %}
+<div class="div_menu_no_border">
+  <p class="p_menu">{{user}}, </p>
+  <p class="p_menu" style="color:red">{{message}} </p>
+  <p class="p_menu">You are about to change the following offer: <span class="table_customer">{{ offer.offered_product }}</span></p>
+  <br>
+  <br>
+  <form class="form_offer" method="post">
+    {% csrf_token %}
+    <label class="label_input">The <span class="table_customer">customer</span> to pitched this offer to is:</label>
+    <select name="customer" class="input_offer_select" required>
+      <option value="{{ offer.customer_that_received_offer.id }}"  selected>{{ offer.customer_that_received_offer }}</option>
+      {% for cust in customers %}
+      <option value="{{cust.id}}" class="input_offer">{{ cust.customer_name }}</option>
+      {% endfor %}
+    </select>
+    <br>
+    <br>
+    <label class="label_input">You offered <span class="table_sku" > {{ offer.offered_sold_or_declined_quantity_kg }}kg </span> (out of <span class="table_sku">{{ wholeQuantity }}kg </span> avalilable)</label>
+    <input class="input_offer" type="number" name="quantity" min="0" max="{{ wholeQuantity }}" step="1" value="{{ offer.offered_sold_or_declined_quantity_kg }}" required>
+    <br>
+    <br>
+    <label class="label_input">At a <span class="table_status_offered">discount</span> of <span class="table_status_offered">{{offer.discount_offered_percents}}% </span></label>
+    <input class="input_offer" type="number" min="0" max="100" step="0.1" name="discount_in_percent" value="{{ offer.discount_offered_percents }}" placeholder="%" required>
+    <br>
+    <br>
+    <label class="label_input">And a <span class="table_status_declined">price</span> per kg of <span class="table_status_declined">£{{ offer.price_per_kg_offered }}</span></label>
+    <input class="input_offer" type="number" name="price" min="0" max="100" step="0.01" value="{{ offer.price_per_kg_offered }}" required>
+    <br>
+    <br>
+    <label class="label_input">On the date <span class="table_date"> {{ offer.date_of_offer }}</span></label>
+    <br>
+    <input class="input_offer" type="date" name="date_of_offer" value="{{ dateOfOfferString }}" required>
+    <br>
+    <br>
+    <input class="input_form_submit_offer" type="submit" value="Modify the offer 🡢" required>
+  </form>
+  <a class="a_menu" href="{% url 'userseallstock' %}">🡠 To available stock</a>
+  <a class="a_menu" href="{% url 'home' %}">🡠 Back Home</a>
+  {% endblock %}
+
+</div>

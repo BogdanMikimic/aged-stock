@@ -1,0 +1,40 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{% static 'aged/css/home.css' %}">
+  {% block customJs %}{% endblock %}
+  <title>{% block pagename %} {% endblock %}</title>
+</head>
+
+<body>
+  <nav>
+    <a class="a_nav" href="{% url 'home' %}" >Home</a>
+    <p class="p_nav">|</p>
+    {% if request.user.is_superuser %}
+    <a class="a_nav" href="{% url 'superuserreports' %}" >Reports</a>
+    <p class="p_nav">|</p>
+    {% endif %}
+    <a class="a_nav" href="{% url 'userseallstock' %}" >Available stock</a>
+    <p class="p_nav">|</p>
+    <a class="a_nav" href="{% url 'userpendingoffers' %}" >My offers</a>
+    <p class="p_nav">|</p>
+
+    <a class="a_nav" href="{% url 'help' %}" >Help</a>
+    <p class="p_nav">|</p>
+    <a class="a_nav" href="{% url 'logout' %}" >Logout</a>
+  </nav>
+  {% block filter %} {% endblock %}
+  {% block body %} {% endblock %}
+  <div class="div_spacer" style="height:20vh;">
+
+  </div>
+  <footer>
+
+  </footer>
+</body>
+
+</html>

@@ -1,0 +1,49 @@
+{% extends 'aged/base.html' %}
+{% load static %}
+
+{% block pagename %} Make offer {% endblock %}
+
+
+{% block body %}
+<div class="div_menu_no_border" id="mainDiv">
+  <p class="p_menu">{{user}}, </p>
+  <p class="p_menu">You are about to make an offer for: <span class="table_customer">{{ stock_item.available_product }}</span></p>
+  <br>
+  <p class="p_notification">The offer will expire after 7 days from the date you make the offer. The reserved (offered) stock will be returned to available stock automatically. The offer will be marked as "Offer expired" in your "My offers" page.</p>
+  <br>
+  <form class="form_offer" method="post">
+    {% csrf_token %}
+    <label class="label_input">The <span class="table_customer">customer</span> to pitch this offer to is:</label>
+    <select name="customer" class="input_offer_select" required>
+      <option value="" disabled selected>Select a customer</option>
+      {% for cust in customers %}
+      <option value="{{cust.id}}" class="input_offer">{{ cust.customer_name }}</option>
+      {% endfor %}
+    </select>
+    <br>
+    <br>
+    <label class="label_input">I want to offer a <span class="table_sku">quantity</span> of ({{ stock_item.available_quantity_in_kg }}kg available)</label>
+    <input class="input_offer" type="number" name="quantity" min="0" max="{{ stock_item.available_quantity_in_kg }}" step="1" placeholder="{{ stock_item.available_quantity_in_kg }}kg (max)" required>
+    <br>
+    <br>
+    <label class="label_input">At a <span class="table_status_offered">discount</span> of (%)</label>
+    <input class="input_offer" type="number" min="0" max="100" step="0.1" name="discount_in_percent" placeholder="%" required>
+    <br>
+    <br>
+    <label class="label_input">And a <span class="table_status_declined">price</span> per kg of</label>
+    <input class="input_offer" type="number" name="price" min="0" max="100" step="0.01" placeholder="£" required>
+    <br>
+    <br>
+    <label class="label_input">On the <span class="table_date">date</span></label>
+    <br>
+    <input class="input_offer" type="date" name="date_of_offer" required>
+    <br>
+    <br>
+    <button class="input_form_submit_offer" name="postOne" type="submit" value="A" id="subBut">Make the offer 🡢</button>
+  </form>
+  <a class="a_menu" href="{% url 'userseallstock' %}">🡠 To available stock</a>
+  <a class="a_menu" href="{% url 'home' %}">🡠 Back Home</a>
+</div>
+
+
+{% endblock %}

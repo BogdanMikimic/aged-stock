@@ -1,0 +1,15 @@
+{% extends 'aged/base.html' %}
+
+{% block body %}
+<div class="div_menu_no_border">
+<form method="post">
+    {% csrf_token %}
+    {% for line in form %}
+    <p class="p_form_label_login" style="margin:5%">{{line.label}}</p>
+    <p>{{line}}</p>
+    {% endfor %}
+    <br>
+    <input type="submit" value="Login" class="input_form_submit">
+</form>
+</div>
+{% endblock %}

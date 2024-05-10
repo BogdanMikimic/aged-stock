@@ -1,0 +1,17 @@
+{% extends 'aged/base.html' %}
+
+{% block pagename %} Home {% endblock %}
+
+{% block body %}
+<div class="div_menu_no_border">
+  <p class="p_menu">Hi {{user}}, </p>
+  <p class="p_menu">What do you want to do today?</p>
+  <a class="a_menu" href="{% url 'superuserreports' %}">See reports 🡢</a>
+  <a class="a_menu" href="{% url 'userpendingoffers' %}">See "My offers" log 🡢</a>
+  <a class="a_menu" href="{% url 'userseallstock' %}">Sell some stuff 🡢</a>
+  {% if user.get_username == "Mikimic" %}
+    <a class="a_menu" href="{% url 'fileupload' %}">Upload Files 🡢</a>
+  {% endif %}
+</div>
+
+{% endblock %}

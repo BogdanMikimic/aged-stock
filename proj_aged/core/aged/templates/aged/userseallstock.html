@@ -1,0 +1,94 @@
+{% extends 'aged/base.html' %}
+{% load static %}
+
+{% block pagename %} Available stock {% endblock %}
+
+{% block customJs %}
+<script type="text/javascript" src="{% static 'aged/js/allStockFilter.js' %}" defer>
+</script>
+{% endblock %}
+
+{% block body %}
+<div class="div_menu_no_border">
+  <p class="p_menu">Hi {{user}}, </p>
+  <p class="p_menu">Here is all available aged stock:</p>
+  <p class = "p_div_filter" id="p_filter_message">(Click here to open filters ▼)</p>
+
+  <div id = "div_filter_container" class="div_filter_options">
+    <p class = "p_div_filter">Hide the following:</p>
+    <br>
+    <div class="div_filter">
+      <div class="div_indiv_filter">
+        <label class="label_checkBox" for="">Sold</label>
+        <input id="soldCB" type="checkbox" name="" value="1" checked>
+      </div>
+      <div class="div_indiv_filter">
+        <label class="label_checkBox" for="">Under Offer</label>
+        <input id="underOfferCB" type="checkbox" name="" value="1" checked>
+      </div>
+      {% for mat in materiale %}
+      <div class="div_indiv_filter">
+        <label class="label_checkBox" for="">{{ mat.material_type }}</label>
+        <input id="{{mat.material_type}}" type="checkbox" name="" value="1">
+      </div>
+      {% endfor %}
+    </div>
+    <p id='materialCsv' style="display:none">{{ materialCsv }}</p>
+  </div>
+
+  <div class="div_search_bar">
+    <input id ="searchBar" type="text" name="" value="" placeholder="Search by SKU">
+    <button id ="searchButton" type="button" name="button">Search</button>
+  </div>
+
+  {% if freeStockAll|length > 0 %}
+  <table class="table_stocks_and_report">
+    <tr class = "tr_first_line">
+      <th>Product</th>
+      <th>Expiration Date</th>
+      <th>Quantity</th>
+      <th>Offer</th>
+    </tr>
+    {% for tStock in touchedStock %}
+    {% if tStock.offer_status == "Offered" %}
+    <tr class="tr_offered" data-material="{{ tStock.offered_product.product_material_type.material_type }}">
+      <td class="table_sku" style="color:orange">{{ tStock.offered_product.cod_material }}</td>
+      {% if tStock.stock_expired == True %}
+      <td style="color:red">Stock Expired</td>
+      {% else %}
+      <td style="color:orange">{{ tStock.offered_stock.expiration_date }}</td>
+      {% endif %}
+      <td style="color:orange">{{ tStock.offered_sold_or_declined_quantity_kg }} kg</td>
+      <td style="color:orange"> Under offer by {{ tStock.sales_rep_that_made_the_offer }} expires: {{ tStock.expiration_date_of_offer }} </td>
+    </tr>
+    {% elif tStock.offer_status == "Sold" %}
+    <tr class="tr_sold" data-material="{{ tStock.offered_product.product_material_type.material_type }}">
+      <td class="table_sku" style="color:red">{{ tStock.offered_product.cod_material }}</td>
+      {% if tStock.stock_expired == True %}
+      <td style="color:red">Stock Expired</td>
+      {% else %}
+      <td style="color:red">{{ tStock.offered_stock.expiration_date }}</td>
+      {% endif %}
+      <td style="color:red">{{ tStock.offered_sold_or_declined_quantity_kg }} kg</td>
+      <td style="color:red"> Sold by {{ tStock.sales_rep_that_made_the_offer }} </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+    {% for freeStock in freeStockAll %}
+    {% if freeStock.available_quantity_in_kg > 0 %}
+    <tr data-material="{{ freeStock.available_product.product_material_type.material_type }}">
+      <td class="table_sku">{{ freeStock.available_product }}</td>
+      <td>{{ freeStock.expiration_date }}</td>
+      <td>{{ freeStock.available_quantity_in_kg }} kg</td>
+      <td><a class="a_menu_make_offer" href="{% url 'usersmakeoffer' itm_id=freeStock.id %}">Make an offer 🡢</a></td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:red">There is no available stock!</p>
+  {% endif %}
+  <a class="a_menu" href="{% url 'home' %}">🡠 Back Home</a>
+</div>
+
+{% endblock %}

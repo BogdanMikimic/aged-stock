@@ -1,0 +1,14 @@
+{% extends 'aged/base.html' %}
+
+{% block pagename %} Upload files {% endblock %}
+
+{% block body %}
+<div class="div_menu_no_border">
+  <p class="p_menu">Hi {{user}}, </p>
+  <p class="p_menu">What file you need to upload?</p>
+  <a class="a_menu" href="{% url 'salespeopleupload' %}">(1) Salespeople, customer care agents and customers</a>
+  <a class="a_menu" href="#">(2) Historic data</a>
+  <a class="a_menu" href="{% url 'agedstockupload' %}">(3) Aged stock</a>
+</div>
+
+{% endblock %}

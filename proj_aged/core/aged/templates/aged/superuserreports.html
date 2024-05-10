@@ -1,0 +1,101 @@
+{% extends 'aged/base.html' %}
+{% load static %}
+
+{% block pagename %} Reports {% endblock %}
+
+{% block customJs %}<script type="text/javascript" src="{% static 'aged/js/dateStopper.js' %}" defer>
+</script>{% endblock %}
+
+{% block body %}
+<div class="div_menu_no_border">
+  <p class="p_menu">Hi {{user}}, </p>
+  <p class="p_menu">Here is the report of pending and closed offers:</p>
+  {% if objects|length > 0 %}
+  <p class="p_div_filter" id="p_filter_message">By default it shows offers made in the last 60 days, and 30 days in the future (if for example someone created an offer today to present to their clients next week)</p>
+
+  <form class="div_superuser_filter" method="post">
+    {% csrf_token %}
+    <div class="div_indiv_field_superus_form">
+      <label class="label_form" for="">Select salesperson</label>
+      <select class="inputs_superuser_form" name="nameOfUser">
+        <option value="{{ preselectValues.salesperson }}">{{ preselectValues.salesperson }}</option>
+        {% for usr in allUsersWithOffers %}
+        {% if usr != preselectValues.salesperson %}
+        <option value="{{ usr }}">{{ usr }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="div_indiv_field_superus_form">
+      <label class="label_form" for="">Select offer status</label>
+      <select class="inputs_superuser_form" name="offerStatus">
+        <option value="{{ preselectValues.state }}">{{ preselectValues.state }}</option>
+        {% for offer in allOfferStatus %}
+        {% if offer != preselectValues.state %}
+        <option value="{{ offer }}">{{ offer }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="div_indiv_field_superus_form">
+      <label class="label_form" for="">Select start date</label>
+      <input class="inputs_superuser_form" id="start" type="date" name="startDate" value="{{ preselectValues.start }}" min='2022-01-01'>
+    </div>
+
+    <div class="div_indiv_field_superus_form">
+      <label class="label_form" for="">Select end date</label>
+      <input class="inputs_superuser_form" id="stop" type="date" name="endDate" value="{{ preselectValues.end }}" min='2022-01-01'>
+    </div>
+
+    <div class="div_indiv_field_superus_form">
+      <input class="input_submit_superuser_form" type="submit" name="" value="Search">
+    </div>
+  </form>
+
+
+  <table class="table_stocks_and_report">
+    <tr class="tr_first_line">
+      <th>Sales rep</th>
+      <th>Offered Stock</th>
+      <th>Customer</th>
+      <th>Kg offered</th>
+      <th>Status</th>
+      <th>Discount%</th>
+      <th>Price</th>
+      <th>Date of offer</th>
+      <th class="table_status_sold">Offer expires</th>
+      <th>Date of outcome</th>
+    </tr>
+    {% for obj in objects %}
+    <tr>
+      <td class="table_sales_rep">{{ obj.sales_rep_that_made_the_offer }}</td>
+      <td class="table_sku">{{ obj.offered_stock }}</td>
+      <td class="table_customer">{{ obj.customer_that_received_offer }}</td>
+      <td>{{ obj.offered_sold_or_declined_quantity_kg }} kg</td>
+      {% if obj.offer_status == 'Sold' %}
+      <td class="table_status_sold">{{ obj.offer_status }}</td>
+      {% elif obj.offer_status == 'Offered' %}
+      <td class="table_status_offered">{{ obj.offer_status }}</td>
+      {% else %}
+      <td class="table_status_declined">{{ obj.offer_status }}</td>
+      {% endif %}
+      <td>{{ obj.discount_offered_percents }}</td>
+      <td>{{ obj.price_per_kg_offered }}</td>
+      <td>{{ obj.date_of_offer }}</td>
+      <td class="table_status_sold">{{ obj.expiration_date_of_offer }}</td>
+      <td>{{ obj.date_of_outcome  }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <a class="a_menu" href="{% url 'home' %}">🡠 Back Home</a>
+  {% else %}
+  <p style="color:red">There are no offers matching the search criteria!</p>
+  <a class="a_menu" href="{% url 'superuserreports' %}">🡠 Back to reports</a>
+  {% endif %}
+  <a class="a_menu" href="{% url 'home' %}">🡠 To Homepage </a>
+
+</div>
+
+{% endblock %}

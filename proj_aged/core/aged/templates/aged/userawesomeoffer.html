@@ -1,0 +1,25 @@
+{% extends 'aged/base.html' %}
+
+{% block pagename %} Great job! {% endblock %}
+
+{% load static %}
+{% block customJs %} <script type="text/javascript" src="{% static 'aged/js/waitSpinner.js' %}" defer></script> {% endblock %}
+{% block body %}
+<div style="display:flex; flex-direction:column; text-align:center; align-items:center; padding:1%">
+  <p style="width:50%; margin:0.3%;">{{user}}, you are awesome! </p>
+  <img src="{% static 'aged/img/Way-to-go-Congratulations-Meme.jpg'%}" alt="">
+  <br>
+  <p class="p_notification">Download your offer as a PDF now. This is the only page you get the chance to download it, if you navigate away, you won't be able to do it anymore.</p>
+  <br>
+  <form class="" method="post" id="pdfDownload">
+    {% csrf_token %}
+    <button id="getPdf" class="input_form_submit_offer" type="submit" name="postTwo" value="B">Download offer as PDF&#8595&#8595</button>
+  </form>
+  <div id="loader"></div>
+  <a class="a_menu" href="{% url 'userseallstock' %}">Let me try another one</a>
+  <a class="a_menu" href="{% url 'home' %}">I know! (home)</a>
+  </div>
+
+
+
+{% endblock %}

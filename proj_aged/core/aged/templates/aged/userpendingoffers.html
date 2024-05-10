@@ -1,0 +1,110 @@
+{% extends 'aged/base.html' %}
+{% load static %}
+
+{% block pagename %} Pending offers {% endblock %}
+
+{% block customJs %}
+<script type="text/javascript" src="{% static 'aged/js/offersFilter.js' %}" defer>
+</script>
+{% endblock %}
+
+{% block body %}
+<div class="div_menu_no_border">
+<p class="p_menu">{{user}}'s offers log </p>
+<p class = "p_div_filter" id="p_filter_message">(Click here to open filters ▼)</p>
+<div id = "div_filter_container" class="div_filter_options">
+  <p class = "p_div_filter">Hide the following:</p>
+  <br>
+  <div class="div_filter">
+    <div class="div_indiv_filter">
+      <label class="label_checkBox" for="">Declined</label>
+      <input id="Declined" type="checkbox" name="" value="1">
+    </div>
+    <div class="div_indiv_filter">
+      <label class="label_checkBox" for="">Offered</label>
+      <input id="Offered" type="checkbox" name="" value="1" >
+    </div>
+    <div class="div_indiv_filter">
+      <label class="label_checkBox" for="">Sold</label>
+      <input id="Sold" type="checkbox" name="" value="1">
+    </div>
+    <div class="div_indiv_filter">
+      <label class="label_checkBox" for="">Offer Expired</label>
+      <input id="OfferExpired" type="checkbox" name="" value="1">
+    </div>
+
+  </div>
+  </div>
+
+{% if pending|length > 0 %}
+<table  cellpadding="10" cellspacing="10" class="table_stocks_and_report">
+  <tr class = "tr_first_line">
+    <th> Offered Stock </th>
+    <th> Customer </th>
+    <th> Kg offered </th>
+    <th> Discount (%) </th>
+    <th> Price </th>
+    <th> Date of offer </th>
+    <th class="table_status_sold">Offer expires</th>
+    <th> Date of outcome </th>
+    <th> Offer status </th>
+    <th> Change status </th>
+  </tr>
+  {% for obj in pending %}
+  {% if obj.offer_status == "Offer Expired" %}
+  <tr class="OfferExpired">
+  {% else %}
+  <tr class="{{ obj.offer_status }}">
+  {% endif %}
+    <td class="table_sku">{{ obj.offered_product.cod_material }}</td>
+    <td class="table_customer">{{ obj.customer_that_received_offer }}</td>
+    <td>{{ obj.offered_sold_or_declined_quantity_kg }}</td>
+    <td>{{ obj.discount_offered_percents }}</td>
+    <td>{{ obj.price_per_kg_offered }}</td>
+    <td>{{ obj.date_of_offer }}</td>
+    <td class="table_status_sold">{{ obj.expiration_date_of_offer }}</td>
+    <td>{{ obj.date_of_outcome }}</td>
+
+    {% if obj.offer_status == "Offered" %}
+    <td style="color:orange">{{ obj.offer_status }}</td>
+      {% if obj.stock_expired == True %}
+      <td style="color:red">Stock Expired</td>
+      {% else %}
+      <td><a class="a_menu_make_offer" href="{% url 'changeofferedstatus' offer_id=obj.id %}"> Change </a></td>
+      {% endif %}
+
+    {% elif obj.offer_status == "Sold" %}
+      <td style="color:#98c379">{{ obj.offer_status }}</td>
+      {% if obj.stock_expired == True %}
+      <td style="color:red">Stock Expired</td>
+      {% else %}
+      <td>N/A</td>
+      {% endif %}
+
+    {% elif obj.offer_status == "Declined" %}
+      <td style="color:red">{{ obj.offer_status }}</td>
+      {% if obj.stock_expired == True %}
+      <td style="color:red">Stock Expired</td>
+      {% else %}
+      <td>N/A</td>
+      {% endif %}
+
+    {% elif obj.offer_status == "Offer Expired" %}
+      <td style="color:#c678dd">{{ obj.offer_status }}</td>
+      {% if obj.stock_expired == True %}
+      <td style="color:red">Stock Expired</td>
+      {% else %}
+      <td>N/A</td>
+      {% endif %}
+    {% endif %}
+
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p style="color:red">You have no activity to show!</p>
+{% endif %}
+<a class="a_menu" href="{% url 'userseallstock' %}">Back to available stock</a>
+<a class="a_menu" href="{% url 'home' %}">Back to homepage</a>
+</div>
+{% endblock %}

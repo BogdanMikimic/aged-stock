@@ -1,0 +1,18 @@
+{% extends 'aged/base.html' %}
+
+{% block pagename %} Change offer status {% endblock %}
+
+{% block body %}
+<div class="div_menu_no_border">
+  <p class="p_menu">Hi {{user}}, </p>
+  <p class="p_menu">How do you want to change the status of your offer of <span style="color:#c678dd"> {{ object.offered_sold_or_declined_quantity_kg }}kg </span>of<span style="color:#c678dd"> {{ object.offered_product.cod_material }} </span>that was offered to <span style="color:#c678dd"> {{ object.customer_that_received_offer.customer_name }}</span> ?</p>
+  <p class="p_menu" style = "color:red"> Changing a stock to "Sold" or "Declined" is irreversible...ish (I can change it back, but you can't)!  </p>
+  <form class=""  method="post" style="display:flex; flex-direction:column">
+    {% csrf_token %}
+    <button type="submit" name="sold" value="1" class="but_change_status">Change it to SOLD</button>
+    <button type="submit" name="declined" value="1" class="but_change_status">Change it to DECLINED</button>
+    <button type="submit" name="changeOfferRedirect" value="1" class="but_change_status">Change offer parameters (price, customer, etc.)</button>
+    <button type="submit" name="return" value="1" class="but_change_status">Back to my offers</button>
+  </form>
+</div>
+{% endblock %}
