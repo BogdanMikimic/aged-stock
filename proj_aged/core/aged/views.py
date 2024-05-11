@@ -10,6 +10,7 @@ from .lab import Aged_stock
 from .lab.writePdfOffer import PdfOfferCreator
 from .lab.AgedMailSender import MailSender
 import datetime
+from .lab.Sales_people_and_their_accounts2 import only_one_tab_check
 
 # Homepage. Returnuie pagina de user sau superuser, depinde cine o acceseaza
 # In ambele cazuri pagina contine doar linkuri spre alte sectiuni
@@ -244,112 +245,134 @@ def fileupload(request):
 @login_required
 @user_passes_test(lambda u: u.get_username() == 'Mikimic')
 def salespeopleupload(request):
-    # dupa ce uploadez si citesc ce e in excel verific ce e in baza de date. Singurele lucruri care trebe facute de mana sunt conturile userilor
+    # dupa ce uploadez si citesc ce e in excel verific ce e in baza de date.
+    # Singurele lucruri care trebe facute de mana sunt conturile userilor
     if request.method == 'GET':
         return render(request, 'aged/salespeopleupload.html')
     elif request.method == 'POST':
-        # upload file, read content, delete file - retrun content as dict
+        # upload xlsx file with accounts and sales people, read content, delete file - return content as dict
         file_name = 'people.xlsx'
         file_1 = request.FILES['file_1']
-        obiect_fisier = FileSystemStorage()
-        obiect_fisier.save(file_name, file_1)
-        # data_as_lista_de_dict e lista de dictionare
-        data_as_lista_de_dict = Sales_people_and_their_accounts2.SalesPeople(f'media/{file_name}').runAll()
-        obiect_fisier.delete(file_name)
+        file_object = FileSystemStorage()
+        file_object.save(file_name, file_1)
+        file_name_with_path = f'media/{file_name}'
+        only_one_tab_check(file_name_with_path)
 
-        # in sectiunea asta pana la capat verific if all Sales reps are in the database
-        allSalesPeopleAreInDatabase = False
-        accountsToBeDeletedList = list()
-        accountsToBeCreatedList = list()
-        databaseUsersAsList = list()
-        messageCreate = 'No Salesperson accounts to CREATE'
-        messageDelete = 'No Salesperson accounts to DELETE'
-        message = ''
-        allUsersInDatabase = User.objects.values('first_name', 'last_name') #e lista de dictionare cu toti userii din baza de date doar ca sunt nume si prenume 2 valori distincte (key-value pairs) in baza de date, pecand in excelul uploadat, ele sunt intr-o singura coloana
+        file_object.delete(file_name)
 
-        # pas 1 - creez o lista in care unesc numele cu prenumele (in baza de date numele e una, prenumele e alta, iar in excelul uploadat numele si prenumele sunt impreuna un singur string)
-        for itm in allUsersInDatabase:
-            if itm['first_name'] != '' and itm['last_name'] != '':
-                databaseUsersAsList.append(f"{itm['first_name'].lower()} {itm['last_name'].lower()}")
+        return render(request, 'aged/salespeopleupload.html')
 
-        # pas 2 - verific daca cei din excel sunt si in baza de date (in lista creata la pas 1), care nu e, il appendui in lista
-        for im1 in data_as_lista_de_dict:
-            if im1['Sales Rep'].lower() not in databaseUsersAsList and im1['Sales Rep'] not in accountsToBeCreatedList:
-                accountsToBeCreatedList.append(im1['Sales Rep'])
+        # if returned_file_name != '':
+        #     print('file saved')
+        # # check file has more than one tab
+        # if Sales_people_and_their_accounts2.only_one_tab_check(f'media/{file_name}') is False:
+        #     file_object.delete(file_name)
+        #     return render(request, 'aged/salespeopleupload.html',
+        #                   {'error_msg': 'Spreadsheet has more than one tab. Check the spreadsheet'})
+        # else:
+        #     file_object.delete(file_name)
+        #     return render(request, 'aged/salespeopleupload.html')
 
-
-        # pas 3 - verific daca nu sunt conturi disabled in baza de date (sales people care au plecat)
-        # primul pas e sa scot din lista de dictionare create din excel o lista cu useri ca sa pot compara lista cu lista
-        listaCuSalesPeopleInExcel = list()
-        for pers in data_as_lista_de_dict:
-            if pers['Sales Rep'].lower() not in listaCuSalesPeopleInExcel:
-                listaCuSalesPeopleInExcel.append(pers['Sales Rep'].lower())
-        # verific sales people care nu mai sunt in firma, dar in baza de date
-        # partea asta o sa o folosesc ceva mai jos dupa ce uploadez customeri
-        for itm2 in databaseUsersAsList:
-            if itm2 not in listaCuSalesPeopleInExcel:
-                accountsToBeDeletedList.append(itm2)
-
-        # verific daca toate conturile de sales rep sunt la zi (nu avem oameni fara cont sau oameni cu cont care nu mai sunt)
-        if len(accountsToBeCreatedList) >0:
-            messageCreate = 'The following Sales Rep user accounts need to be CREATED'
-        else:
-            message = 'All Sales Reps up to date'
-            allSalesPeopleAreInDatabase = True
-
-        if allSalesPeopleAreInDatabase == True:
-            # ====== upload customer service people (accounts are linked to both)
-            customerCarePeopleInDatabase = CustomerService.objects.values('customer_service_rep')
-            cleanCustRep = list()
-            for ccrep in customerCarePeopleInDatabase:
-                cleanCustRep.append(ccrep['customer_service_rep'].lower())
-
-            listOfSingleCleanCustCare = list()
-            for rep in data_as_lista_de_dict:
-                if rep['Customer Care Agent'].strip().lower() not in cleanCustRep and rep['Customer Care Agent'].strip().lower().title() not in listOfSingleCleanCustCare:
-                    listOfSingleCleanCustCare.append(rep['Customer Care Agent'].strip().lower().title())
-
-            for customerCarePerson in listOfSingleCleanCustCare:
-                pers = CustomerService(customer_service_rep=customerCarePerson, c_serv_status='Active')
-                pers.save()
-
-            message += '\n All Customer Care Reps up to date'
-            # ====== upload customers
-            # check if customer exists (based on customer number that I assumed is unique - id like)
-            custExistingInDatab = Customers.objects.values('customer_number')
-            listOfExistingCustNumbersInDatab = list()
-            for cuzt in custExistingInDatab:
-                listOfExistingCustNumbersInDatab.append(cuzt['customer_number'])
-
-            # Submit customer to database
-            for entry in data_as_lista_de_dict:
-                # verifica daca customerul exista in baza de date dupa id-ul din excel (customer number) si daca nu exista contul, il creaza
-                if entry['Customer Number'] not in listOfExistingCustNumbersInDatab:
-                    addCustomers = Customers(
-                    customer_name=entry['Customer Name'],
-                    customer_number=entry['Customer Number'],
-                    salesperson_owning_account = User.objects.filter(first_name=f"{entry['Sales Rep'].strip().lower().title().split(' ')[0]}", last_name = f"{entry['Sales Rep'].strip().lower().title().split(' ')[1]}").all()[0],
-                    allocated_customer_service_rep = CustomerService.objects.filter(customer_service_rep=entry['Customer Care Agent'].strip().lower().title()).all()[0]
-                    )
-                    addCustomers.save()
-                # pentru toate conturile existente updateaza customer care agent si sales person
-                else:
-                    updateCustomer = Customers.objects.filter(customer_number=entry['Customer Number']).update(
-                    customer_name=entry['Customer Name'],
-                    customer_number=entry['Customer Number'],
-                    salesperson_owning_account = User.objects.filter(first_name=f"{entry['Sales Rep'].strip().lower().title().split(' ')[0]}", last_name = f"{entry['Sales Rep'].strip().lower().title().split(' ')[1]}").all()[0],
-                    allocated_customer_service_rep = CustomerService.objects.filter(customer_service_rep=entry['Customer Care Agent'].strip().lower().title()).all()[0]
-                    )
-
-            # sterge conturile SalesPersonurilor care nu exista in tabelul excel dart exista in baza de date
-            if len(accountsToBeDeletedList) >0:
-                messageDelete = 'The following accounts were DELETED:'
-                for accountToDelete in accountsToBeDeletedList:
-                    usr = User.objects.filter(first_name=accountToDelete.split(' ')[0].title(), last_name=accountToDelete.split(' ')[1].title())
-                    usr.delete()
-
-            message += '\n Customers up to date'
-        return render(request, 'aged/salespeopleupload.html', {'accountsToCreate':accountsToBeCreatedList, 'accountsToDelete':accountsToBeDeletedList, 'messageCreate':messageCreate, 'messageDelete':messageDelete, 'message':message})
+        # xlsx_processing_object = Sales_people_and_their_accounts2.SalesPeople(f'media/{file_name}')
+        # data_as_list_of_dicts = xlsx_processing_object.runAll()
+        # del xlsx_processing_object
+        # file_object.delete(file_name)
+        # # TODO: possible checks if data as list_of_dicts encounters errors
+        #
+        # # in sectiunea asta pana la capat verific if all Sales reps are in the database
+        # allSalesPeopleAreInDatabase = False
+        # accountsToBeDeletedList = list()
+        # accountsToBeCreatedList = list()
+        # databaseUsersAsList = list()
+        # messageCreate = 'No Salesperson accounts to CREATE'
+        # messageDelete = 'No Salesperson accounts to DELETE'
+        # message = ''
+        # # get all existing users as a list of dictionaries (first name and last name only)
+        # allUsersInDatabase = User.objects.values('first_name', 'last_name')
+        #
+        # # pas 1 - creez o lista in care unesc numele cu prenumele (in baza de date numele e una, prenumele e alta, iar in excelul uploadat numele si prenumele sunt impreuna un singur string)
+        # for itm in allUsersInDatabase:
+        #     if itm['first_name'] != '' and itm['last_name'] != '':
+        #         databaseUsersAsList.append(f"{itm['first_name'].lower()} {itm['last_name'].lower()}")
+        #
+        # # pas 2 - verific daca cei din excel sunt si in baza de date (in lista creata la pas 1), care nu e, il appendui in lista
+        # for im1 in data_as_list_of_dicts:
+        #     if im1['Sales Rep'].lower() not in databaseUsersAsList and im1['Sales Rep'] not in accountsToBeCreatedList:
+        #         accountsToBeCreatedList.append(im1['Sales Rep'])
+        #
+        #
+        # # pas 3 - verific daca nu sunt conturi disabled in baza de date (sales people care au plecat)
+        # # primul pas e sa scot din lista de dictionare create din excel o lista cu useri ca sa pot compara lista cu lista
+        # listaCuSalesPeopleInExcel = list()
+        # for pers in data_as_list_of_dicts:
+        #     if pers['Sales Rep'].lower() not in listaCuSalesPeopleInExcel:
+        #         listaCuSalesPeopleInExcel.append(pers['Sales Rep'].lower())
+        # # verific sales people care nu mai sunt in firma, dar in baza de date
+        # # partea asta o sa o folosesc ceva mai jos dupa ce uploadez customeri
+        # for itm2 in databaseUsersAsList:
+        #     if itm2 not in listaCuSalesPeopleInExcel:
+        #         accountsToBeDeletedList.append(itm2)
+        #
+        # # verific daca toate conturile de sales rep sunt la zi (nu avem oameni fara cont sau oameni cu cont care nu mai sunt)
+        # if len(accountsToBeCreatedList) >0:
+        #     messageCreate = 'The following Sales Rep user accounts need to be CREATED'
+        # else:
+        #     message = 'All Sales Reps up to date'
+        #     allSalesPeopleAreInDatabase = True
+        #
+        # if allSalesPeopleAreInDatabase == True:
+        #     # ====== upload customer service people (accounts are linked to both)
+        #     customerCarePeopleInDatabase = CustomerService.objects.values('customer_service_rep')
+        #     cleanCustRep = list()
+        #     for ccrep in customerCarePeopleInDatabase:
+        #         cleanCustRep.append(ccrep['customer_service_rep'].lower())
+        #
+        #     listOfSingleCleanCustCare = list()
+        #     for rep in data_as_list_of_dicts:
+        #         if rep['Customer Care Agent'].strip().lower() not in cleanCustRep and rep['Customer Care Agent'].strip().lower().title() not in listOfSingleCleanCustCare:
+        #             listOfSingleCleanCustCare.append(rep['Customer Care Agent'].strip().lower().title())
+        #
+        #     for customerCarePerson in listOfSingleCleanCustCare:
+        #         pers = CustomerService(customer_service_rep=customerCarePerson, c_serv_status='Active')
+        #         pers.save()
+        #
+        #     message += '\n All Customer Care Reps up to date'
+        #     # ====== upload customers
+        #     # check if customer exists (based on customer number that I assumed is unique - id like)
+        #     custExistingInDatab = Customers.objects.values('customer_number')
+        #     listOfExistingCustNumbersInDatab = list()
+        #     for cuzt in custExistingInDatab:
+        #         listOfExistingCustNumbersInDatab.append(cuzt['customer_number'])
+        #
+        #     # Submit customer to database
+        #     for entry in data_as_list_of_dicts:
+        #         # verifica daca customerul exista in baza de date dupa id-ul din excel (customer number) si daca nu exista contul, il creaza
+        #         if entry['Customer Number'] not in listOfExistingCustNumbersInDatab:
+        #             addCustomers = Customers(
+        #             customer_name=entry['Customer Name'],
+        #             customer_number=entry['Customer Number'],
+        #             salesperson_owning_account = User.objects.filter(first_name=f"{entry['Sales Rep'].strip().lower().title().split(' ')[0]}", last_name = f"{entry['Sales Rep'].strip().lower().title().split(' ')[1]}").all()[0],
+        #             allocated_customer_service_rep = CustomerService.objects.filter(customer_service_rep=entry['Customer Care Agent'].strip().lower().title()).all()[0]
+        #             )
+        #             addCustomers.save()
+        #         # pentru toate conturile existente updateaza customer care agent si sales person
+        #         else:
+        #             updateCustomer = Customers.objects.filter(customer_number=entry['Customer Number']).update(
+        #             customer_name=entry['Customer Name'],
+        #             customer_number=entry['Customer Number'],
+        #             salesperson_owning_account = User.objects.filter(first_name=f"{entry['Sales Rep'].strip().lower().title().split(' ')[0]}", last_name = f"{entry['Sales Rep'].strip().lower().title().split(' ')[1]}").all()[0],
+        #             allocated_customer_service_rep = CustomerService.objects.filter(customer_service_rep=entry['Customer Care Agent'].strip().lower().title()).all()[0]
+        #             )
+        #
+        #     # sterge conturile SalesPersonurilor care nu exista in tabelul excel dart exista in baza de date
+        #     if len(accountsToBeDeletedList) >0:
+        #         messageDelete = 'The following accounts were DELETED:'
+        #         for accountToDelete in accountsToBeDeletedList:
+        #             usr = User.objects.filter(first_name=accountToDelete.split(' ')[0].title(), last_name=accountToDelete.split(' ')[1].title())
+        #             usr.delete()
+        #
+        #     message += '\n Customers up to date'
+        # return render(request, 'aged/salespeopleupload.html', {'accountsToCreate':accountsToBeCreatedList, 'accountsToDelete':accountsToBeDeletedList, 'messageCreate':messageCreate, 'messageDelete':messageDelete, 'message':message})
 
 
 # this it is only available to me (file to upload aged stock .xlsx file)

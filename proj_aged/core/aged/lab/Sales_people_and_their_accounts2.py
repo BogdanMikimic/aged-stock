@@ -1,10 +1,26 @@
-class SalesPeople():
-    #returneaza o lista de dictionare
+import pandas as pd
+
+def only_one_tab_check(spreadsheet_and_path:str) -> bool:
+    """
+    Checks that the spreadsheet has only one tab
+    """
+    file = pd.ExcelFile(spreadsheet_and_path, engine='openpyxl')
+    if len(file.sheet_names) == 1:
+        file.close()
+        return True
+    else:
+        file.close()
+        return False
+
+
+class SalesPeople:
+    """"
+    Gets an uploaded xlsx file
+    Returns a list of dictionaries
+    """
     def __init__(self, file_with_path):
-        from openpyxl import load_workbook
-        global load_workbook
         self.unchecked_path = file_with_path
-        self.my_xcel = None
+        self.my_xlsx = None
         self.excel_object = None
         self.work_tab = None
         self.table_headings_needed = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
@@ -17,20 +33,24 @@ class SalesPeople():
         self.is_column_empty = False
         self.col_count = 0
         self.heading_not_found = list()
-        self.my_xcel = self.unchecked_path
+        self.my_xlsx = self.unchecked_path
 
 
     def checkPosibleMultipleTabs(self):
-        '''Checks file to have only one tab.
-        Is not designed to work with more than one tab'''
-        self.excel_object = load_workbook(self.my_xcel)
+        """
+        Checks file to have only one tab (is not designed to work with more than one tab
+        """
+        self.excel_object = load_workbook(self.my_xlsx)
         if len(self.excel_object.sheetnames) == 1:
-            self.work_tab = self.excel_object.active #get active tab
+            # get active tab
+            self.work_tab = self.excel_object.active
         else:
             return False
 
     def checkAndEliminateEmptyRows(self):
-        '''Checks file and eliminates empty rows'''
+        """
+        Checks file and eliminates empty rows
+        """
         for row in self.work_tab.iter_rows():
             self.row_count += 1
             for itm in row:
