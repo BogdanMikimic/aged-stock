@@ -13,6 +13,45 @@ def only_one_tab_check(spreadsheet_and_path:str) -> bool:
         return False
 
 
+def check_spreadsheet_contains_data(spreadsheet_and_path:str) -> bool:
+    """
+    Checks that the document is not blank
+    """
+    df = pd.read_excel(spreadsheet_and_path)
+    # check if the document actually holds any values
+    if not (df.notna().any().any()):
+        return False
+    else:
+        return True
+
+
+def return_data_frame_without_empty_rows_and_cols(spreadsheet_and_path:str) -> object:
+    df = pd.read_excel(spreadsheet_and_path, header=None)
+    # delete rows where all elements are NaN
+    df = df.dropna(how='all')
+    # delete columns where all elements are NaN
+    df = df.dropna(axis=1, how='all')
+    # Use the first row as headers
+    df.columns = df.iloc[0]  # Set the first row as the column headers
+    df = df[1:]  # Drop the first row since it's now the header
+    # Reset the index of the DataFrame
+    df.reset_index(drop=True, inplace=True)
+    return df
+
+
+def check_headers(expected_headers: list[str], dataframe:object) -> bool:
+    # Retrieve the actual headers from the DataFrame
+    actual_headers = dataframe.columns.tolist()
+    print('actual headers', actual_headers)
+    print('expected_headers', expected_headers)
+    # Check if the expected headers match the actual headers
+    if list(expected_headers) == list(actual_headers):
+        return True
+    else:
+        return False
+
+
+
 class SalesPeople:
     """"
     Gets an uploaded xlsx file

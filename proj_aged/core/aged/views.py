@@ -10,7 +10,10 @@ from .lab import Aged_stock
 from .lab.writePdfOffer import PdfOfferCreator
 from .lab.AgedMailSender import MailSender
 import datetime
-from .lab.Sales_people_and_their_accounts2 import only_one_tab_check
+from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
+    check_spreadsheet_contains_data, \
+    return_data_frame_without_empty_rows_and_cols,\
+    check_headers
 
 # Homepage. Returnuie pagina de user sau superuser, depinde cine o acceseaza
 # In ambele cazuri pagina contine doar linkuri spre alte sectiuni
@@ -256,7 +259,15 @@ def salespeopleupload(request):
         file_object = FileSystemStorage()
         file_object.save(file_name, file_1)
         file_name_with_path = f'media/{file_name}'
+        # TODO if more than one tab is detected return some template
         only_one_tab_check(file_name_with_path)
+        # TODO if the xslx is blank return some template message
+        check_spreadsheet_contains_data(file_name_with_path)
+        dataframe = return_data_frame_without_empty_rows_and_cols()
+        expected_headers = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
+        check_headers(expected_headers, dataframe)
+        # TODO if the xslx has the wrong headers return some some template message
+
 
         file_object.delete(file_name)
 
