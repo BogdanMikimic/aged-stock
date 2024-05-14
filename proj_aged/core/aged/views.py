@@ -259,8 +259,9 @@ def salespeopleupload(request):
         file_object = FileSystemStorage()
         file_object.save(file_name, file_1)
         file_name_with_path = f'media/{file_name}'
-        # TODO if more than one tab is detected return some template
-        only_one_tab_check(file_name_with_path)
+        if not only_one_tab_check(file_name_with_path):
+            upload_status = 'The file has more than one tab. Fix that and re-upload'
+            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
         # TODO if the xslx is blank return some template message
         check_spreadsheet_contains_data(file_name_with_path)
         dataframe = return_data_frame_without_empty_rows_and_cols()
