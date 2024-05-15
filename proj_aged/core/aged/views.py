@@ -259,18 +259,23 @@ def salespeopleupload(request):
         file_object = FileSystemStorage()
         file_object.save(file_name, file_1)
         file_name_with_path = f'media/{file_name}'
+
         if not only_one_tab_check(file_name_with_path):
             file_object.delete(file_name)
             upload_status = 'The file has more than one tab. Fix file and re-upload'
             return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+
         if not check_spreadsheet_contains_data(file_name_with_path):
             file_object.delete(file_name)
             upload_status = 'The file has no data. Fix file and re-upload'
             return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+
         dataframe = return_data_frame_without_empty_rows_and_cols(file_name_with_path)
         expected_headers = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
-        check_headers(expected_headers, dataframe)
-        # TODO if the xslx has the wrong headers return some some template message
+        if not check_headers(expected_headers, dataframe):
+            file_object.delete(file_name)
+            upload_status = f'The file has the wrong headers. The expected headers are: {" ".join(expected_headers)}. Fix file and re-upload'
+            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
 
 
         file_object.delete(file_name)

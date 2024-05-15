@@ -26,6 +26,9 @@ def check_spreadsheet_contains_data(spreadsheet_and_path:str) -> bool:
 
 
 def return_data_frame_without_empty_rows_and_cols(spreadsheet_and_path:str) -> object:
+    """
+    Returns only the data as a pandas dataframe, removing empty rows and columns
+    """
     df = pd.read_excel(spreadsheet_and_path, header=None)
     # delete rows where all elements are NaN
     df = df.dropna(how='all')
@@ -40,10 +43,12 @@ def return_data_frame_without_empty_rows_and_cols(spreadsheet_and_path:str) -> o
 
 
 def check_headers(expected_headers: list[str], dataframe:object) -> bool:
+    """
+    Checks the headers in the dataframe against expected headers and returns True if they are the same
+    and Fa;se if they are not
+    """
     # Retrieve the actual headers from the DataFrame
     actual_headers = dataframe.columns.tolist()
-    print('actual headers', actual_headers)
-    print('expected_headers', expected_headers)
     # Check if the expected headers match the actual headers
     if list(expected_headers) == list(actual_headers):
         return True

@@ -95,6 +95,18 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # and this time the error message is different
         self.assertEqual(self.browser.find_element(By.ID, 'upload_status').text,
                          'The file has no data. Fix file and re-upload')
+        # he goes back and tries again
+        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        # this time he uploads an older file that does not contain the right headers
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        wrong_relative_path = 'aged/lab/DataSafeOnes/10_wrong_headers.xlsx'
+        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
+        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # and this time the error message is different - telling him about the wrong headers
+        self.assertTrue(self.browser.find_element(By.ID, 'upload_status').text.startswith("The file has the wrong headers."))
+
 
 
 
