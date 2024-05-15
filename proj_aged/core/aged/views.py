@@ -260,11 +260,11 @@ def salespeopleupload(request):
         file_object.save(file_name, file_1)
         file_name_with_path = f'media/{file_name}'
         if not only_one_tab_check(file_name_with_path):
-            upload_status = 'The file has more than one tab. Fix that and re-upload'
+            upload_status = 'The file has more than one tab. Fix file and re-upload'
             return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
         # TODO if the xslx is blank return some template message
         check_spreadsheet_contains_data(file_name_with_path)
-        dataframe = return_data_frame_without_empty_rows_and_cols()
+        dataframe = return_data_frame_without_empty_rows_and_cols(file_name_with_path)
         expected_headers = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
         check_headers(expected_headers, dataframe)
         # TODO if the xslx has the wrong headers return some some template message

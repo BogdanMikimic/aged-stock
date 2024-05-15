@@ -9,13 +9,13 @@
       {% csrf_token %}
       <label class="label_form">Upload .xlsx file containing Customer Name, Customer Number, Sales Rep, Customer Care Agent. They are case sensitive and there should not be a blank space before or after each heading. For now they need to be in this order. Empty rows and columns at the begining are removed automatically</label>
       <br>
-      <input class="input_submit" type="file" name="file_1" accept=".xlsx" required>
+      <input id="id_file_field" class="input_submit" type="file" name="file_1" accept=".xlsx" required>
       <br>
-      <input class= "input_submit" type="submit" name="Submit">
+      <input id="id_submit_file" class= "input_submit" type="submit" name="Submit">
     </form>
     <p style="color:red">{{error_msg}}</p>
     {% else %}
-    <label class="label_form">File <span style ="color:red"> {{upload_status}} </span></label>
+    <label class="label_form"><span id="upload_status" style ="color:red"> {{upload_status}} </span></label>
     <pre>{{ messageCreate }}</pre>
     {% for user in accountsToCreate %}
     <p> {{ user }} </p>

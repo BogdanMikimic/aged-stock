@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from django.contrib.auth.models import User
 from selenium.webdriver.common.keys import Keys
 import time
+import os
 
 # Morgan - a salesperson in the UK department heard about this cool app that was designed by a colleague
 # to help the sales people better manage their aged stock
@@ -58,7 +59,6 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
         self.browser.quit()  # quits firefox
 
-
     # And logs into his acocunt - which differs from anyone else's because it has an "Upload Files ->" button
     def test_log_in_for_admin(self):
         self.browser.get(self.live_server_url)
@@ -67,7 +67,29 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         password_input = self.browser.find_element(By.ID, 'id_password')
         password_input.send_keys('adminpassword')
         self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
-        self.assertIsNotNone(self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢'))
+        upload_files_button = self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢')
+        self.assertIsNotNone(upload_files_button)
+        # He clicks on upload files button
+        upload_files_button.click()
+        # and he is greeted by the question "What file you need to upload?"
+        self.assertEqual(self.browser.find_elements(By.CLASS_NAME, 'p_menu')[1].text, 'What file you need to upload?')
+        # he navigates down to the "(1) Salespeople, customer care agents and customers" button and clicks on it
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        # a new page with a form opens
+        # he navigates to the upload field and browse for a file to upload
+        # unfortunately he uploads the wrong file that has more than one tab
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        wrong_relative_path = 'aged/lab/DataSafeOnes/8_multiple_tabs.xlsx'
+        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
+        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # and he is meet by an error message
+        self.assertEqual(self.browser.find_element(By.ID, 'upload_status').text,
+                         'The file has more than one tab. Fix file and re-upload')
+
+
+
+
 
 
 
