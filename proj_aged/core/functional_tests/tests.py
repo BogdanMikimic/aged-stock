@@ -26,19 +26,16 @@ class LoginIsRequired(StaticLiveServerTestCase):
         # she clicks on the navigation bar on the "Available stock" button only to be greeted by the same request
         available_stock_anchor_tag = self.browser.find_element(By.LINK_TEXT, 'Available stock')
         available_stock_anchor_tag.click()
-        WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id_username')))
         self.assertIsNotNone(self.browser.find_elements(By.ID, 'id_username'), 'There is no "id_username" id on page')
         self.assertIsNotNone(self.browser.find_elements(By.ID, 'id_password'), 'There is no "id_password" id on page')
         # she clicks on the navigation bar on the "My offers" button only to be greeted by the same request
         my_offers_anchor_tag = self.browser.find_element(By.LINK_TEXT, 'My offers')
         my_offers_anchor_tag.click()
-        WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id_username')))
         self.assertIsNotNone(self.browser.find_elements(By.ID, 'id_username'), 'There is no "id_username" id on page')
         self.assertIsNotNone(self.browser.find_elements(By.ID, 'id_password'), 'There is no "id_password" id on page')
         # finally, she clicks on the navigation bar on the "My offers" button only to be greeted by the same request
         help_page_anchor_tag = self.browser.find_element(By.LINK_TEXT, 'Help')
         help_page_anchor_tag.click()
-        WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id_username')))
         self.assertIsNotNone(self.browser.find_elements(By.ID, 'id_username'), 'There is no "id_username" id on page')
         self.assertIsNotNone(self.browser.find_elements(By.ID, 'id_password'), 'There is no "id_password" id on page')
 
@@ -86,6 +83,18 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # and he is meet by an error message
         self.assertEqual(self.browser.find_element(By.ID, 'upload_status').text,
                          'The file has more than one tab. Fix file and re-upload')
+        # he goes back and tries again
+        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        # but this time he uploads a file that holds an empty spreadsheet
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        wrong_relative_path = 'aged/lab/DataSafeOnes/9_blank_file.xlsx'
+        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
+        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # and this time the error message is different
+        self.assertEqual(self.browser.find_element(By.ID, 'upload_status').text,
+                         'The file has no data. Fix file and re-upload')
 
 
 
