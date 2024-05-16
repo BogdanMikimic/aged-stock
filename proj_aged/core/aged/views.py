@@ -5,15 +5,18 @@ from .models import *
 from django.contrib.auth.decorators import user_passes_test
 from django.core.files.storage import FileSystemStorage # deals with file stored on drive
 from django.http import HttpResponse # returns files to download
-from .lab import Sales_people_and_their_accounts2
 from .lab import Aged_stock
 from .lab.writePdfOffer import PdfOfferCreator
 from .lab.AgedMailSender import MailSender
 import datetime
+import textwrap
 from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data, \
     return_data_frame_without_empty_rows_and_cols,\
-    check_headers
+    check_headers,\
+    check_salespeople_in_database,\
+    create_customer_care_accounts, \
+    create_customer_accounts
 
 # Homepage. Returnuie pagina de user sau superuser, depinde cine o acceseaza
 # In ambele cazuri pagina contine doar linkuri spre alte sectiuni
@@ -253,23 +256,26 @@ def salespeopleupload(request):
     if request.method == 'GET':
         return render(request, 'aged/salespeopleupload.html')
     elif request.method == 'POST':
-        # upload xlsx file with accounts and sales people, read content, delete file - return content as dict
+        # upload xlsx file with accounts and sales people
         file_name = 'people.xlsx'
         file_1 = request.FILES['file_1']
         file_object = FileSystemStorage()
         file_object.save(file_name, file_1)
         file_name_with_path = f'media/{file_name}'
 
+        # check xlsx has only one tab
         if not only_one_tab_check(file_name_with_path):
             file_object.delete(file_name)
             upload_status = 'The file has more than one tab. Fix file and re-upload'
             return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
 
+        # check spreadsheet not blank
         if not check_spreadsheet_contains_data(file_name_with_path):
             file_object.delete(file_name)
             upload_status = 'The file has no data. Fix file and re-upload'
             return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
 
+        # check that the spreadsheet contains the expected headers
         dataframe = return_data_frame_without_empty_rows_and_cols(file_name_with_path)
         expected_headers = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
         if not check_headers(expected_headers, dataframe):
@@ -277,122 +283,37 @@ def salespeopleupload(request):
             upload_status = f'The file has the wrong headers. The expected headers are: {" ".join(expected_headers)}. Fix file and re-upload'
             return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
 
-
+        # delete the xlsx file from database
         file_object.delete(file_name)
 
-        return render(request, 'aged/salespeopleupload.html')
+        # check that all users are in the database and that deleting or creating some is not required
+        if not check_salespeople_in_database(dataframe):
+            acc_to_create_or_delete = check_salespeople_in_database(dataframe)
+            message_create = ''
+            accounts_to_create = list()
+            message_delete = ''
+            accounts_to_delete = list()
 
-        # if returned_file_name != '':
-        #     print('file saved')
-        # # check file has more than one tab
-        # if Sales_people_and_their_accounts2.only_one_tab_check(f'media/{file_name}') is False:
-        #     file_object.delete(file_name)
-        #     return render(request, 'aged/salespeopleupload.html',
-        #                   {'error_msg': 'Spreadsheet has more than one tab. Check the spreadsheet'})
-        # else:
-        #     file_object.delete(file_name)
-        #     return render(request, 'aged/salespeopleupload.html')
+            if len(acc_to_create_or_delete[0]) > 0:
+                message_create = textwrap.dedent('''Customers are linked to sales people, 
+                                                   so salespeople accounts need to be created first.
+                                                   The following accounts need to be created:''')
+                accounts_to_create = acc_to_create_or_delete[0]
+            else:
+                message_create = textwrap.dedent('''No sales people account to create''')
 
-        # xlsx_processing_object = Sales_people_and_their_accounts2.SalesPeople(f'media/{file_name}')
-        # data_as_list_of_dicts = xlsx_processing_object.runAll()
-        # del xlsx_processing_object
-        # file_object.delete(file_name)
-        # # TODO: possible checks if data as list_of_dicts encounters errors
-        #
-        # # in sectiunea asta pana la capat verific if all Sales reps are in the database
-        # allSalesPeopleAreInDatabase = False
-        # accountsToBeDeletedList = list()
-        # accountsToBeCreatedList = list()
-        # databaseUsersAsList = list()
-        # messageCreate = 'No Salesperson accounts to CREATE'
-        # messageDelete = 'No Salesperson accounts to DELETE'
-        # message = ''
-        # # get all existing users as a list of dictionaries (first name and last name only)
-        # allUsersInDatabase = User.objects.values('first_name', 'last_name')
-        #
-        # # pas 1 - creez o lista in care unesc numele cu prenumele (in baza de date numele e una, prenumele e alta, iar in excelul uploadat numele si prenumele sunt impreuna un singur string)
-        # for itm in allUsersInDatabase:
-        #     if itm['first_name'] != '' and itm['last_name'] != '':
-        #         databaseUsersAsList.append(f"{itm['first_name'].lower()} {itm['last_name'].lower()}")
-        #
-        # # pas 2 - verific daca cei din excel sunt si in baza de date (in lista creata la pas 1), care nu e, il appendui in lista
-        # for im1 in data_as_list_of_dicts:
-        #     if im1['Sales Rep'].lower() not in databaseUsersAsList and im1['Sales Rep'] not in accountsToBeCreatedList:
-        #         accountsToBeCreatedList.append(im1['Sales Rep'])
-        #
-        #
-        # # pas 3 - verific daca nu sunt conturi disabled in baza de date (sales people care au plecat)
-        # # primul pas e sa scot din lista de dictionare create din excel o lista cu useri ca sa pot compara lista cu lista
-        # listaCuSalesPeopleInExcel = list()
-        # for pers in data_as_list_of_dicts:
-        #     if pers['Sales Rep'].lower() not in listaCuSalesPeopleInExcel:
-        #         listaCuSalesPeopleInExcel.append(pers['Sales Rep'].lower())
-        # # verific sales people care nu mai sunt in firma, dar in baza de date
-        # # partea asta o sa o folosesc ceva mai jos dupa ce uploadez customeri
-        # for itm2 in databaseUsersAsList:
-        #     if itm2 not in listaCuSalesPeopleInExcel:
-        #         accountsToBeDeletedList.append(itm2)
-        #
-        # # verific daca toate conturile de sales rep sunt la zi (nu avem oameni fara cont sau oameni cu cont care nu mai sunt)
-        # if len(accountsToBeCreatedList) >0:
-        #     messageCreate = 'The following Sales Rep user accounts need to be CREATED'
-        # else:
-        #     message = 'All Sales Reps up to date'
-        #     allSalesPeopleAreInDatabase = True
-        #
-        # if allSalesPeopleAreInDatabase == True:
-        #     # ====== upload customer service people (accounts are linked to both)
-        #     customerCarePeopleInDatabase = CustomerService.objects.values('customer_service_rep')
-        #     cleanCustRep = list()
-        #     for ccrep in customerCarePeopleInDatabase:
-        #         cleanCustRep.append(ccrep['customer_service_rep'].lower())
-        #
-        #     listOfSingleCleanCustCare = list()
-        #     for rep in data_as_list_of_dicts:
-        #         if rep['Customer Care Agent'].strip().lower() not in cleanCustRep and rep['Customer Care Agent'].strip().lower().title() not in listOfSingleCleanCustCare:
-        #             listOfSingleCleanCustCare.append(rep['Customer Care Agent'].strip().lower().title())
-        #
-        #     for customerCarePerson in listOfSingleCleanCustCare:
-        #         pers = CustomerService(customer_service_rep=customerCarePerson, c_serv_status='Active')
-        #         pers.save()
-        #
-        #     message += '\n All Customer Care Reps up to date'
-        #     # ====== upload customers
-        #     # check if customer exists (based on customer number that I assumed is unique - id like)
-        #     custExistingInDatab = Customers.objects.values('customer_number')
-        #     listOfExistingCustNumbersInDatab = list()
-        #     for cuzt in custExistingInDatab:
-        #         listOfExistingCustNumbersInDatab.append(cuzt['customer_number'])
-        #
-        #     # Submit customer to database
-        #     for entry in data_as_list_of_dicts:
-        #         # verifica daca customerul exista in baza de date dupa id-ul din excel (customer number) si daca nu exista contul, il creaza
-        #         if entry['Customer Number'] not in listOfExistingCustNumbersInDatab:
-        #             addCustomers = Customers(
-        #             customer_name=entry['Customer Name'],
-        #             customer_number=entry['Customer Number'],
-        #             salesperson_owning_account = User.objects.filter(first_name=f"{entry['Sales Rep'].strip().lower().title().split(' ')[0]}", last_name = f"{entry['Sales Rep'].strip().lower().title().split(' ')[1]}").all()[0],
-        #             allocated_customer_service_rep = CustomerService.objects.filter(customer_service_rep=entry['Customer Care Agent'].strip().lower().title()).all()[0]
-        #             )
-        #             addCustomers.save()
-        #         # pentru toate conturile existente updateaza customer care agent si sales person
-        #         else:
-        #             updateCustomer = Customers.objects.filter(customer_number=entry['Customer Number']).update(
-        #             customer_name=entry['Customer Name'],
-        #             customer_number=entry['Customer Number'],
-        #             salesperson_owning_account = User.objects.filter(first_name=f"{entry['Sales Rep'].strip().lower().title().split(' ')[0]}", last_name = f"{entry['Sales Rep'].strip().lower().title().split(' ')[1]}").all()[0],
-        #             allocated_customer_service_rep = CustomerService.objects.filter(customer_service_rep=entry['Customer Care Agent'].strip().lower().title()).all()[0]
-        #             )
-        #
-        #     # sterge conturile SalesPersonurilor care nu exista in tabelul excel dart exista in baza de date
-        #     if len(accountsToBeDeletedList) >0:
-        #         messageDelete = 'The following accounts were DELETED:'
-        #         for accountToDelete in accountsToBeDeletedList:
-        #             usr = User.objects.filter(first_name=accountToDelete.split(' ')[0].title(), last_name=accountToDelete.split(' ')[1].title())
-        #             usr.delete()
-        #
-        #     message += '\n Customers up to date'
-        # return render(request, 'aged/salespeopleupload.html', {'accountsToCreate':accountsToBeCreatedList, 'accountsToDelete':accountsToBeDeletedList, 'messageCreate':messageCreate, 'messageDelete':messageDelete, 'message':message})
+            if len(acc_to_create_or_delete[1]) > 0:
+                message_delete = textwrap.dedent('''There are a few sales people accounts to create:''')
+
+            return render(request, 'aged/salespeopleupload.html', {'message_create': message_create,
+                                                                   'message_delete': message_delete,
+                                                                   'accounts_to_create': accounts_to_create,
+                                                                   'accounts_to_delete': accounts_to_delete,
+                                                               })
+        else:
+            create_customer_care_accounts(dataframe)
+            create_customer_accounts(dataframe)
+
 
 
 # this it is only available to me (file to upload aged stock .xlsx file)

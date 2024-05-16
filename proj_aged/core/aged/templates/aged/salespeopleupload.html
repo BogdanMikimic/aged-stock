@@ -16,11 +16,11 @@
     <p style="color:red">{{error_msg}}</p>
     {% else %}
     <label class="label_form"><span id="upload_status" style ="color:red"> {{upload_status}} </span></label>
-    <pre>{{ messageCreate }}</pre>
-    {% for user in accountsToCreate %}
+    <pre>{{ message_create }}</pre>
+    {% for user in accounts_to_create %}
     <p> {{ user }} </p>
     {% endfor %}
-    <pre style="color:red">{{ messageDelete }}</pre>
+    <pre style="color:red">{{ message_delete }}</pre>
     {% for user in accountsToDelete %}
     <p style="color:red"> {{ user }} </p>
     {% endfor %}

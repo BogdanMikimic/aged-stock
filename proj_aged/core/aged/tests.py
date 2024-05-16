@@ -1,9 +1,11 @@
 from django.test import TestCase
+from django.contrib.auth.models import User
 import pandas as pd
 from aged.lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data,\
     return_data_frame_without_empty_rows_and_cols,\
-    check_headers
+    check_headers,\
+    check_salespeople_in_database
 
 
 class CheckSalespeopleFileUpload(TestCase):
@@ -38,3 +40,49 @@ class CheckSalespeopleFileUpload(TestCase):
         wrong_headers = ['Customer Cat Name', 'Customer Number', 'Sales Rep', 'Customer Care']
         self.assertFalse(check_headers(wrong_headers, dataframe))
 
+    def test_user_in_database(self):
+        # this test should return 3 accounts to be created no accounts to be deleted
+        dataframe = return_data_frame_without_empty_rows_and_cols("aged\\lab\\DataSafeOnes\\11_3_new_salespeople.xlsx")
+        users_to_be_created_or_deleted = check_salespeople_in_database(dataframe)
+        self.assertEqual(len(users_to_be_created_or_deleted[0]), 3, 'There should be 3 new accounts to be created')
+        self.assertEqual(len(users_to_be_created_or_deleted[1]), 0, 'There should be 0 accounts to be deleted')
+
+        # create one user so the test returns 2 accounts to be creates and zero to be deleted
+        User.objects.create_user(
+            username='Taylor',
+            first_name='Taylor',
+            last_name= 'Miller',
+            password='hg£$f%sadhgf334r5!'
+        )
+        users_to_be_created_or_deleted = check_salespeople_in_database(dataframe)
+        self.assertEqual(len(users_to_be_created_or_deleted[0]), 2, 'There should be 2 new accounts to be created')
+        self.assertEqual(len(users_to_be_created_or_deleted[1]), 0, 'There should be 0 accounts to be deleted')
+
+        # create the rest of the accounts so there are 0 accounts to create and 0 accounts to delete
+        User.objects.create_user(
+            username='Morgan',
+            first_name='Morgan',
+            last_name= 'Davis',
+            password='hg£$f%sdashgf334r5!'
+        )
+        User.objects.create_user(
+            username='Casey',
+            first_name='Casey',
+            last_name= 'Martinez',
+            password='hg£$f%sdarhgf334r5!'
+        )
+        self.assertTrue(check_salespeople_in_database(dataframe))
+
+        # create another user non-existent in the xlsx so the test returns 0 accounts to be created and 1 to be deleted
+        User.objects.create_user(
+            username='Spiderman',
+            first_name='Peter',
+            last_name= 'Parker',
+            password='dwaf%sadhgf334r5!'
+        )
+        users_to_be_created_or_deleted = check_salespeople_in_database(dataframe)
+        self.assertEqual(len(users_to_be_created_or_deleted[0]), 0, 'There should be 0 new accounts to be created')
+        self.assertEqual(len(users_to_be_created_or_deleted[1]), 1, 'There should be 1 account to be deleted')
+
+        # TODO: test create_customer_care_accounts function
+        # TODO: finish create_customer_accounts function

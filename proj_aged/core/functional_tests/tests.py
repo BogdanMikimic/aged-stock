@@ -107,6 +107,8 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # and this time the error message is different - telling him about the wrong headers
         self.assertTrue(self.browser.find_element(By.ID, 'upload_status').text.startswith("The file has the wrong headers."))
 
+    # TODO: test create_customer_care_accounts function
+    # TODO: finish create_customer_accounts function
 
 
 
