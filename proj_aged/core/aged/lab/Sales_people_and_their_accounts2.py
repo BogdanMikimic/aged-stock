@@ -1,5 +1,6 @@
 import pandas as pd
 from django.contrib.auth.models import User
+from ..models import CustomerService
 
 
 def only_one_tab_check(spreadsheet_and_path:str) -> bool:
@@ -93,7 +94,21 @@ def check_salespeople_in_database(dataframe: object) -> tuple[list[str], list[st
 
 def create_customer_care_accounts(dataframe: object) -> None:
     customer_care_agents_list = dataframe['Customer Care Agent'].tolist()
-    # TODO: finish create_customer_care_accounts function
+    # create customer care if it does not exist
+    for pers in customer_care_agents_list:
+        CustomerService.objects.get_or_create(customer_service_rep=pers)
+
+    # delete existing customer care rep if not in the xlsx
+    customer_care_db_list = CustomerService.objects.values_list('customer_service_rep', flat=True)
+    c_care_to_delete = list()
+    for c_care_agent in customer_care_db_list:
+        if c_care_agent not in customer_care_agents_list:
+            c_care_to_delete.append(c_care_agent)
+
+    for cc_to_delete in c_care_to_delete:
+        del_obj = CustomerService.objects.get(customer_service_rep=cc_to_delete)
+        del_obj.delete()
+
 
 
 def create_customer_accounts(dataframe: object) -> None:

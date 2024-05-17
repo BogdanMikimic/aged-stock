@@ -49,8 +49,8 @@ class LocationsForStocks(models.Model):
 class CustomerService(models.Model):
     #Each account has a customer service representative
     customer_service_rep = models.CharField(max_length=100)
-    STATUS_CHOICES = ( ('Active', 'Active'), ('Closed', 'Closed'), ('Inactive', 'Inactive'), )
-    c_serv_status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    # STATUS_CHOICES = ( ('Active', 'Active'), ('Closed', 'Closed'), ('Inactive', 'Inactive'), )
+    # c_serv_status = models.CharField(max_length=10, choices=STATUS_CHOICES)
 
     def __str__(self):
         return self.customer_service_rep
