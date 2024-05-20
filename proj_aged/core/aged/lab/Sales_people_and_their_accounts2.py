@@ -93,6 +93,13 @@ def check_salespeople_in_database(dataframe: object) -> tuple[list[str], list[st
 
 
 def create_customer_care_accounts(dataframe: object) -> None:
+    """
+    Populates the database with customer care entries rom xlsx
+    Deletes the customer care entries that are not in the xlsx
+
+    :param dataframe: pamdas dataframe
+    """
+
     customer_care_agents_list = dataframe['Customer Care Agent'].tolist()
     # create customer care if it does not exist
     for pers in customer_care_agents_list:

@@ -1,11 +1,13 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
+from .models import CustomerService
 import pandas as pd
 from aged.lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data,\
     return_data_frame_without_empty_rows_and_cols,\
     check_headers,\
-    check_salespeople_in_database
+    check_salespeople_in_database,\
+    create_customer_care_accounts
 
 
 class CheckSalespeopleFileUpload(TestCase):
@@ -84,5 +86,21 @@ class CheckSalespeopleFileUpload(TestCase):
         self.assertEqual(len(users_to_be_created_or_deleted[0]), 0, 'There should be 0 new accounts to be created')
         self.assertEqual(len(users_to_be_created_or_deleted[1]), 1, 'There should be 1 account to be deleted')
 
-        # TODO: test create_customer_care_accounts function
+    def test_customer_care_accounts_created_deleted(self):
+        # upload 3 new salespeople in the database
+        dataframe = return_data_frame_without_empty_rows_and_cols("aged\\lab\\DataSafeOnes\\11_3_new_salespeople.xlsx")
+        create_customer_care_accounts(dataframe)
+        self.assertEqual(CustomerService.objects.count(), 3)
+        self.assertTrue(CustomerService.objects.filter(customer_service_rep='Taylor Smith').exists())
+        self.assertTrue(CustomerService.objects.filter(customer_service_rep='Jordan Miller').exists())
+        self.assertTrue(CustomerService.objects.filter(customer_service_rep='Jamie Garcia').exists())
+
+        # delete Jamie Garcia from the xlsx and check if it's deleted from database
+        dataframe = return_data_frame_without_empty_rows_and_cols("aged\\lab\\DataSafeOnes\\12_only_2_customer_care_agents.xlsx")
+        create_customer_care_accounts(dataframe)
+        self.assertFalse(CustomerService.objects.filter(customer_service_rep='Jamie Garcia').exists())
+
+
+
+
         # TODO: finish create_customer_accounts function
