@@ -63,9 +63,9 @@ class Customers(models.Model):
     #Customers nu se sterg din baza de date, nici daca nu mai exista -> sunt folosite in OffersLog
     customer_name = models.CharField(max_length=100)
     customer_number = models.IntegerField()
-    salesperson_owning_account= models.ForeignKey(User, on_delete=models.RESTRICT)
-    allocated_customer_service_rep = models.ForeignKey(CustomerService, on_delete=models.RESTRICT)
-    STATUS_CHOICES = ( ('Active', 'Active'), ('Closed', 'Closed'), ('Inactive', 'Inactive'), )
+    salesperson_owning_account = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    allocated_customer_service_rep = models.ForeignKey(CustomerService, null=True, blank=True, on_delete=models.SET_NULL)
+    STATUS_CHOICES = ( ('Active', 'Active'), ('Inactive', 'Inactive'), )
     customer_status = models.CharField(max_length=10, choices=STATUS_CHOICES)
 
     def __str__(self):

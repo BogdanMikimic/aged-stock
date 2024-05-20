@@ -10,7 +10,7 @@ There are 3 types of accounts:
 
 ## App flow and features
 * admin logs into his account where he has an extra button where he can upload 3 types of xlsx files
-* first type is a xlsx containing information about customers, salespeople and managers
+* first type is a xlsx containing information about customers, salespeople and managers - this is always the latest situation about what sales people, customer care reps and customers the company has
 * the admin is restricted to uploading xlsx files, the file is checked to contain only one tab, not be blank and contain the right headers
 * each customer is linked via foreign key to a user and a customer care agent, so the first thing the system checks is if all the customers have accounts
 * the system also checks if there are accounts that need deleting (if a user is not in the xlsx, but it is in the database, it will be flagged for deletion)

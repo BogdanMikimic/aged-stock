@@ -1,6 +1,6 @@
 import pandas as pd
 from django.contrib.auth.models import User
-from ..models import CustomerService
+from ..models import CustomerService, Customers
 
 
 def only_one_tab_check(spreadsheet_and_path:str) -> bool:
@@ -116,9 +116,52 @@ def create_customer_care_accounts(dataframe: object) -> None:
         del_obj = CustomerService.objects.get(customer_service_rep=cc_to_delete)
         del_obj.delete()
 
+def do_not_use_in_production_automatic_accounts_creation(dataframe: object) -> None:
+    """
+    Just a speedy function to create user accounts. Don't use it in production
+    """
+
+    sales_reps = return_data_frame_without_empty_rows_and_cols(dataframe)['Customer Name'].to_list()
+    for sale_rep in sales_reps:
+        User.objects.create_user(
+            username=f'{sale_rep.split(" ")[0]}',
+            first_name=f'{sale_rep.split(" ")[0]}',
+            last_name= f'{sale_rep.split(" ")[1]}',
+            password='a'
+        )
 
 
 def create_customer_accounts(dataframe: object) -> None:
-    pass
-    # TODO: finish create_customer_accounts function
+    """
+    Adds/updates customers in the database and link them to the foreign keys of Sales person and customer care rep.
+    It marks as inactive customers not in the database
+
+    :param dataframe: a pandas dataframe representing the most current sales people, customer care and customers table
+    """
+    for i in range(len(dataframe)):
+        # extract data from xlsx rows
+        row = dataframe.iloc[i]
+        # retrieve the sales person and customer care agent that matches the database
+        sales_person = User.objects.filter(first_name=row['Sales Rep'].split(' ')[0],
+                                           last_name=row['Sales Rep'].split(' ')[1]).get()
+        customer_care_agent = CustomerService.objects.filter(customer_service_rep=row['Customer Care Agent']).get()
+        Customers.objects.update_or_create(
+            customer_name=row['Customer Name'],
+            defaults={
+            'customer_number':row['Customer Number'],
+            'salesperson_owning_account':sales_person,
+            'allocated_customer_service_rep':customer_care_agent,
+            'customer_status':'Active'}
+        )
+
+    # deactivate inactive customers that do not appear in the xlsx anymore
+    customers = dataframe['Customer Name'].tolist()
+    inactive_customers = Customers.objects.exclude(customer_name__in=customers)
+    inactive_customers.update(allocated_customer_service_rep=None,
+                              salesperson_owning_account=None,
+                              customer_status='Inactive')
+
+
+
+
 

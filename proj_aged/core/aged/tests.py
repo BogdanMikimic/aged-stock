@@ -1,13 +1,14 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
-from .models import CustomerService
+from .models import CustomerService, Customers
 import pandas as pd
 from aged.lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data,\
     return_data_frame_without_empty_rows_and_cols,\
     check_headers,\
     check_salespeople_in_database,\
-    create_customer_care_accounts
+    create_customer_care_accounts,\
+    create_customer_accounts
 
 
 class CheckSalespeopleFileUpload(TestCase):
@@ -31,12 +32,14 @@ class CheckSalespeopleFileUpload(TestCase):
         # test that the cell 0,0 (top left) has no data
         self.assertTrue(pd.isna(original_dataframe.iloc[0, 0]))
         # clean the dataframe of empty columns and rows
-        cleaned_df = return_data_frame_without_empty_rows_and_cols("aged\\lab\\DataSafeOnes\\7_Updated_with_Unique_company_numbers.xlsx")
+        cleaned_df = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\7_Updated_with_Unique_company_numbers.xlsx")
         # check that in cell 0,0 (top left) we have data
         self.assertFalse(pd.isna(cleaned_df.iloc[0, 0]))
 
     def test_right_headers(self):
-        dataframe = return_data_frame_without_empty_rows_and_cols("aged\\lab\\DataSafeOnes\\7_Updated_with_Unique_company_numbers.xlsx")
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\7_Updated_with_Unique_company_numbers.xlsx")
         right_headers = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
         self.assertTrue(check_headers(right_headers, dataframe))
         wrong_headers = ['Customer Cat Name', 'Customer Number', 'Sales Rep', 'Customer Care']
@@ -96,11 +99,70 @@ class CheckSalespeopleFileUpload(TestCase):
         self.assertTrue(CustomerService.objects.filter(customer_service_rep='Jamie Garcia').exists())
 
         # delete Jamie Garcia from the xlsx and check if it's deleted from database
-        dataframe = return_data_frame_without_empty_rows_and_cols("aged\\lab\\DataSafeOnes\\12_only_2_customer_care_agents.xlsx")
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\12_only_2_customer_care_agents.xlsx")
         create_customer_care_accounts(dataframe)
         self.assertFalse(CustomerService.objects.filter(customer_service_rep='Jamie Garcia').exists())
 
+    def test_upload_update_customer(self):
+        # create users
+        User.objects.create_user(
+            username='Morgan',
+            first_name='Morgan',
+            last_name= 'Davis',
+            password='hg£$f%sdashgf334r5!'
+        )
+        User.objects.create_user(
+            username='Miller',
+            first_name='Taylor',
+            last_name= 'Miller',
+            password='hg£$f%sdarhgf334r5!'
+        )
+        # create customer care agents
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\12_only_2_customer_care_agents.xlsx")
+        create_customer_care_accounts(dataframe)
+        # create 'Artisan Grill' and 'Classic Delights' customers and check that they exist
+        create_customer_accounts(dataframe)
+        customers = Customers.objects.values_list('customer_name', flat=True)
+        self.assertTrue('Artisan Grill' in customers)
+        self.assertTrue('Classic Delights' in customers)
+
+        # change customer care agent and check customer is linked to the right cc agent
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\13_customer_care_agents_swap.xlsx")
+        # creates a new customer care 'Bruce Wayne'
+        create_customer_care_accounts(dataframe)
+        self.assertTrue('Bruce Wayne' in CustomerService.objects.values_list('customer_service_rep', flat=True))
+        # 'Classic Delights' should now have a customer care agent called 'Bruce Wayne'
+        create_customer_accounts(dataframe)
+        target_customer = Customers.objects.filter(customer_name='Classic Delights').get()
+        self.assertEqual(target_customer.allocated_customer_service_rep.customer_service_rep, 'Bruce Wayne')
+
+        # change salesperson in the xlsx (create it here) and check customer is linked to the right salesperson
+        User.objects.create_user(
+            username='Fox',
+            first_name='Fox',
+            last_name='Mulder',
+            password='hg£$f%sdarhgf334r5!'
+        )
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\14_New_sales_people_for_same_customer.xlsx")
+        create_customer_accounts(dataframe)
+        target_customer = Customers.objects.filter(customer_name='Classic Delights').get()
+        self.assertEqual(target_customer.salesperson_owning_account.first_name, 'Fox')
+        self.assertEqual(target_customer.salesperson_owning_account.last_name, 'Mulder')
+
+        # make an account inactive in the database - 'Classic Delights' deleted in the database
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\15_deleted_customer.xlsx")
+        create_customer_accounts(dataframe)
+        target_customer = Customers.objects.filter(customer_name='Classic Delights').get()
+        self.assertEqual(target_customer.salesperson_owning_account, None)
+        self.assertEqual(target_customer.allocated_customer_service_rep, None)
+        self.assertEqual(target_customer.customer_status, 'Inactive')
 
 
 
-        # TODO: finish create_customer_accounts function
+
+

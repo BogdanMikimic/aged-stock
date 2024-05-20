@@ -16,7 +16,8 @@ from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_headers,\
     check_salespeople_in_database,\
     create_customer_care_accounts, \
-    create_customer_accounts
+    create_customer_accounts,\
+    do_not_use_in_production_automatic_accounts_creation
 
 # Homepage. Returnuie pagina de user sau superuser, depinde cine o acceseaza
 # In ambele cazuri pagina contine doar linkuri spre alte sectiuni
@@ -295,7 +296,7 @@ def salespeopleupload(request):
             accounts_to_delete = list()
 
             if len(acc_to_create_or_delete[0]) > 0:
-                message_create = textwrap.dedent('''Customers are linked to sales people, 
+                message_create = textwrap.dedent('''Customers are linked to sales people,
                                                    so salespeople accounts need to be created first.
                                                    The following accounts need to be created:''')
                 accounts_to_create = acc_to_create_or_delete[0]
@@ -305,15 +306,18 @@ def salespeopleupload(request):
             if len(acc_to_create_or_delete[1]) > 0:
                 message_delete = textwrap.dedent('''There are a few sales people accounts to create:''')
 
+            # do_not_use_in_production_automatic_accounts_creation(dataframe)
+
             return render(request, 'aged/salespeopleupload.html', {'message_create': message_create,
                                                                    'message_delete': message_delete,
                                                                    'accounts_to_create': accounts_to_create,
                                                                    'accounts_to_delete': accounts_to_delete,
-                                                               })
+                                                                   })
         else:
+            # pass
             create_customer_care_accounts(dataframe)
             create_customer_accounts(dataframe)
-
+            return render(request, 'aged/salespeopleupload.html')
 
 
 # this it is only available to me (file to upload aged stock .xlsx file)
