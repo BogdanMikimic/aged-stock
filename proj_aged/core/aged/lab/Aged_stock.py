@@ -1,11 +1,36 @@
-class AgedStock():
+import pandas as pd
+from ..models import CheckIfFileWasAlreadyUploaded
+
+def check_if_file_was_already_uploaded(xlsx_file_path: str) -> bool:
+    """
+    Sometimes the same xlsx file is being shared.
+    No two files have the same creation date
+
+    :param xlsx_file_path: path to the file as a string
+    :return: True if file has been already uploaded, False if file was not yet updated
+    """
+
+    file = pd.ExcelFile(xlsx_file_path, engine='openpyxl')
+    workbook = file.book
+    creation_date = str(workbook.properties.created)
+
+    data_file_created_list = CheckIfFileWasAlreadyUploaded.objects.values_list('data_creare_fisier', flat=True)
+
+    if creation_date in data_file_created_list:
+        file.close()
+        return True
+    else:
+        file.close()
+        CheckIfFileWasAlreadyUploaded(data_creare_fisier=creation_date).save()
+        return False
+
+
+
+class AgedStock:
     # ia ca argument fisierul excel cu aged stock, o citeste, si o intoarce ca lista de dictionare
     # prin optiunea load_workbook(fisier.xlsx, data_only=True) -> data_only=True aduce valorile in loc de formule
     # ultima coloana e vlookup (deci formula) si aduce valorile
     def __init__(self, file_with_path):
-        from openpyxl import load_workbook
-        import datetime
-        global load_workbook, datetime
         self.my_xcel = file_with_path
         self.excel_object = None
         self.my_tab = None

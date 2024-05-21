@@ -47,7 +47,10 @@ class LocationsForStocks(models.Model):
         verbose_name_plural = 'Stock location'
 
 class CustomerService(models.Model):
-    #Each account has a customer service representative
+    """
+    Each customer account is linked to a customer care representative.
+    Each customer care representative appears on the offer
+    """
     customer_service_rep = models.CharField(max_length=100)
     # STATUS_CHOICES = ( ('Active', 'Active'), ('Closed', 'Closed'), ('Inactive', 'Inactive'), )
     # c_serv_status = models.CharField(max_length=10, choices=STATUS_CHOICES)
@@ -75,15 +78,16 @@ class Customers(models.Model):
         verbose_name_plural = 'Customers'
 
 class CheckIfFileWasAlreadyUploaded(models.Model):
-    #stocheaza data in care fisierul a fost creat din meta-data fisierului excel uploadat
-    #scopul e sa nu uplaodaez de doaua ori acelasi fisier cu aged stock
+    """
+    This records the date in which the stock file was created
+    """
     data_creare_fisier = models.CharField(max_length=30)
 
     def __str__(self):
         return self.data_creare_fisier
 
     class Meta:
-        verbose_name_plural = 'Date creare fisier Aged Stock'
+        verbose_name_plural = 'Date Aged Stock xlsx file was created'
 
 class AvailableStock(models.Model):
     # stock is linked to product and location

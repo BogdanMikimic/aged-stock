@@ -9,7 +9,7 @@ from aged.lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_salespeople_in_database,\
     create_customer_care_accounts,\
     create_customer_accounts
-
+from aged.lab.Aged_stock import check_if_file_was_already_uploaded
 
 class CheckSalespeopleFileUpload(TestCase):
 
@@ -162,7 +162,10 @@ class CheckSalespeopleFileUpload(TestCase):
         self.assertEqual(target_customer.allocated_customer_service_rep, None)
         self.assertEqual(target_customer.customer_status, 'Inactive')
 
-
-
-
+class CheckAgedStockUploads(TestCase):
+    def test_aged_stock_file_upload(self):
+        # check file was not yet uploaded - returns False if not
+        self.assertFalse(check_if_file_was_already_uploaded("aged\\lab\\DataSafeOnes\\01_AgedStock.xlsx"))
+        # run the test again with the same file and it should return True
+        self.assertTrue(check_if_file_was_already_uploaded("aged\\lab\\DataSafeOnes\\01_AgedStock.xlsx"))
 

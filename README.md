@@ -17,6 +17,7 @@ There are 3 types of accounts:
 * for security reasons users are created and deleted manually by the admin 
 * there is no distinction in xlsx between users (salespeople) and superusers (managers)
 * functionally the superusers (managers) have an extra button on the landing page and in navigation to a dashboard where they can see the activity of salespeople, thus removing the need for reporting
+* second type of file is a xlsx containing information about aged stock available in the company
 * 
 
 ## Dashboard: 

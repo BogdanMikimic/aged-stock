@@ -5,11 +5,12 @@ from .models import *
 from django.contrib.auth.decorators import user_passes_test
 from django.core.files.storage import FileSystemStorage # deals with file stored on drive
 from django.http import HttpResponse # returns files to download
-from .lab import Aged_stock
+from .lab.Aged_stock import check_if_file_was_already_uploaded
 from .lab.writePdfOffer import PdfOfferCreator
 from .lab.AgedMailSender import MailSender
 import datetime
 import textwrap
+from openpyxl import load_workbook
 from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data, \
     return_data_frame_without_empty_rows_and_cols,\
@@ -252,8 +253,11 @@ def fileupload(request):
 @login_required
 @user_passes_test(lambda u: u.get_username() == 'Mikimic')
 def salespeopleupload(request):
-    # dupa ce uploadez si citesc ce e in excel verific ce e in baza de date.
-    # Singurele lucruri care trebe facute de mana sunt conturile userilor
+    """
+    Pares the xlsx and notifies if User accounts have to be created or deleted
+    Creates, deletes customer care accounts
+    Creates/retires customer accounts
+    """
     if request.method == 'GET':
         return render(request, 'aged/salespeopleupload.html')
     elif request.method == 'POST':
@@ -314,140 +318,142 @@ def salespeopleupload(request):
                                                                    'accounts_to_delete': accounts_to_delete,
                                                                    })
         else:
-            # pass
             create_customer_care_accounts(dataframe)
             create_customer_accounts(dataframe)
-            return render(request, 'aged/salespeopleupload.html')
+            message = 'All accounts updated'
+            return render(request, 'aged/salespeopleupload.html', {'message': message})
 
 
-# this it is only available to me (file to upload aged stock .xlsx file)
 @login_required
 @user_passes_test(lambda u: u.get_username()=='Mikimic')
 def agedstockupload(request):
     if request.method == 'GET':
         return render(request, 'aged/agedstockupload.html')
     elif request.method == 'POST':
-        # upload file, read content, delete file - retrun content as dict
+        # upload file, read content, delete file - return content as dict
         file_name = 'stock.xlsx'
         file_2 = request.FILES['file_2']
-        obiect_fisier = FileSystemStorage()
-        obiect_fisier.save(file_name, file_2)
+        file_object = FileSystemStorage()
+        file_object.save(file_name, file_2)
         # Check if file was already uploaded
-        dbDataCreatFileListDict = CheckIfFileWasAlreadyUploaded.objects.values()
-        dbDataCreatFileList = list()
-        for dictionar in dbDataCreatFileListDict:
-            dbDataCreatFileList.append(dictionar['data_creare_fisier'])
-        from openpyxl import load_workbook
-        wb = load_workbook(f'media/{file_name}')
-        dataCreatFisier = str(wb.properties.created)
-        if dataCreatFisier in dbDataCreatFileList:
-            message = 'already uploaded'
-            obiect_fisier.delete(file_name)
-            # return render(request, 'aged/agedstockupload.html', {'message':message})
-        else:
-            newDate = CheckIfFileWasAlreadyUploaded(data_creare_fisier=dataCreatFisier)
-            newDate.save()
-            aged_stock_as_lista_de_dict = Aged_stock.AgedStock(f'media/{file_name}').runAll()
-            obiect_fisier.delete(file_name)
-            # brand, material group (adica tipul de material, gen ciocolata, nuci, etc) si stock location sunt in tabele separate fiecare
-            # de asta verific daca ele exista deja in baza de date
-            # pentru asta creez niste liste separate, caut ce valori unice (care nu se repeta) am in excel
-            # scot listele si din baza de date si verific intre ele ce nu exista
-            # toate astea sunt legate de un "Product"
-
-            # liste pt excel
-            brands_list_din_xcel = list()
-            material_group_list_din_xcel = list()
-            stock_location_din_xcel = list()
-            # liste pt baza de date
-            brands_list_din_db = list()
-            material_group_list_din_db = list()
-            stock_location_list_din_db = list()
-
-            # retrievuie datele din baza de date si adauga-le intr-o lista
-            db_brands_list_dict = Brands.objects.values()
-            for br in db_brands_list_dict:
-                brands_list_din_db.append(br['brand'])
-
-            db_material_group_list_dict = MaterialType.objects.values()
-            for mg in db_material_group_list_dict:
-                material_group_list_din_db.append(mg['material_type'])
-
-            db_location_list_dict = LocationsForStocks.objects.values()
-            for loc in db_location_list_dict:
-                stock_location_list_din_db.append(loc['location_of_stocks'])
-
-            # verifica entry-urile unice (elimina ce se repeta) si verifica daca nu sunt deja in baza de date
-            # (verifica doar daca exista brandul in tabelul Brands, grupul de materiale in tabelul MaterialType si locatia in LocationsForStocks)
-            for itm in aged_stock_as_lista_de_dict:
-                if itm['Brand'] not in brands_list_din_xcel and itm['Brand'] not in brands_list_din_db:
-                    brands_list_din_xcel.append(itm['Brand'])
-                if itm['Matl Group'] not in material_group_list_din_xcel and itm['Matl Group'] not in material_group_list_din_db:
-                    material_group_list_din_xcel.append(itm['Matl Group'])
-                if itm['Stor loc'] not in stock_location_din_xcel and itm['Stor loc'] not in stock_location_list_din_db:
-                    stock_location_din_xcel.append(itm['Stor loc'])
-            # daca am branduri, tipul de material si locatia care nu sunt in baza de data, adauga-le in baza de date
-            if len(brands_list_din_xcel)>0:
-                for bra in brands_list_din_xcel:
-                    brandul = Brands(brand=bra)
-                    brandul.save()
-
-            if len(material_group_list_din_xcel)>0:
-                for mat in material_group_list_din_xcel:
-                    materialul = MaterialType(material_type=mat)
-                    materialul.save()
-
-            if len(stock_location_din_xcel)>0:
-                for loca in stock_location_din_xcel:
-                    locatiunea = LocationsForStocks(location_of_stocks=loca)
-                    locatiunea.save()
-
-            # urca toate in baza de date de product
-            for prod in aged_stock_as_lista_de_dict:
-                if Products.objects.filter(cod_material = prod['Material']).exists() == False:
-                    new_prod = Products(
-                               cod_material = prod['Material'],
-                               description = prod['Description'],
-                               product_brand = Brands.objects.filter(brand=prod['Brand']).get(),
-                               product_material_type = MaterialType.objects.filter(material_type=prod['Matl Group']).get()
-                    )
-                    new_prod.save()
-            # curata lista
-            azi = datetime.date.today()
-            data_exp_stoc_bd = AvailableStock.objects.values()
-            identification_values_of_stock = list()
-            # (la "if" mai jos) (redundant - am un task care curata zilnic prod expirate) verifica ce stocuri sunt expirate din stocurile existente in baza de date, si sterge-le. However functioneaza doar a doua oara cand urc produse in baza de date, pt ca verifica in database, nu in ce urc pt ca nu e de asteptat sa fie urcate stocuri expirate in baza de date
-            # (la "elif" mai jos) sterge toate stocurile neatinse (not under offer, nor sold)- verifica daca cantitatea initala == cantitatea actuala
-            # (la "else") - la else sunt stocurile neexpirate si "atinse" (under offer sau sold) pe care le pastrez, dar acum trebuie sa le sterg din lista
-            # generata din exel (adica daca cumva acelasi produs re-apare in excelul nou)
-            for stock0 in data_exp_stoc_bd:
-                if azi >= stock0['expiration_date']:
-                    expiredStockId = stock0['id']
-                    AvailableStock.objects.get(id = stock0['id']).delete()
-                elif stock0['original_quantity_in_kg'] == stock0['available_quantity_in_kg']:
-                    AvailableStock.objects.get(id = stock0['id']).delete()
-                else:
-                    idOfField = [f'{Products.objects.get(id = stock0["available_product_id"])}', stock0["expiration_date"], stock0["batch"]]
-                    for dictSet in aged_stock_as_lista_de_dict:
-                        if idOfField[0] in list(dictSet.values()):
-                            if idOfField[1] in list(dictSet.values()):
-                                if idOfField[2] in list(dictSet.values()):
-                                    aged_stock_as_lista_de_dict.pop(aged_stock_as_lista_de_dict.index(dictSet))
-
-            # urca toate in baza de date Available stock
-            for stock in aged_stock_as_lista_de_dict:
-                new_stock = AvailableStock (
-                            available_product = Products.objects.filter(cod_material = stock['Material']).get(),
-                            stock_location = LocationsForStocks.objects.filter(location_of_stocks = stock['Stor loc']).get(),
-                            expiration_date = stock['Expiration date'],
-                            batch = stock['Batch'],
-                            original_quantity_in_kg = stock['Quantity'],
-                            available_quantity_in_kg = stock['Quantity']
-                            )
-                new_stock.save()
-                message = 'uploaded succesfully'
-
-        return render(request, 'aged/agedstockupload.html', {'message':message})
+        if not check_if_file_was_already_uploaded(f'media/{file_name}'):
+            message = 'This file was already uploaded'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+        # db_data_file_created_list_dict = CheckIfFileWasAlreadyUploaded.objects.values()
+        # db_data_file_created_list = list()
+        # for dictionary in db_data_file_created_list_dict:
+        #     db_data_file_created_list.append(dictionary['data_creare_fisier'])
+        #
+        # wb = load_workbook(f'media/{file_name}')
+        # data_file_was_created = str(wb.properties.created)
+        # if data_file_was_created in db_data_file_created_list:
+        #     message = 'already uploaded'
+        #     file_object.delete(file_name)
+        # else:
+        #     newDate = CheckIfFileWasAlreadyUploaded(data_creare_fisier=data_file_was_created)
+        #     newDate.save()
+        #     aged_stock_as_lista_de_dict = Aged_stock.AgedStock(f'media/{file_name}').runAll()
+        #     file_object.delete(file_name)
+        #     # brand, material group (adica tipul de material, gen ciocolata, nuci, etc) si stock location sunt in tabele separate fiecare
+        #     # de asta verific daca ele exista deja in baza de date
+        #     # pentru asta creez niste liste separate, caut ce valori unice (care nu se repeta) am in excel
+        #     # scot listele si din baza de date si verific intre ele ce nu exista
+        #     # toate astea sunt legate de un "Product"
+        #
+        #     # liste pt excel
+        #     brands_list_din_xcel = list()
+        #     material_group_list_din_xcel = list()
+        #     stock_location_din_xcel = list()
+        #     # liste pt baza de date
+        #     brands_list_din_db = list()
+        #     material_group_list_din_db = list()
+        #     stock_location_list_din_db = list()
+        #
+        #     # retrievuie datele din baza de date si adauga-le intr-o lista
+        #     db_brands_list_dict = Brands.objects.values()
+        #     for br in db_brands_list_dict:
+        #         brands_list_din_db.append(br['brand'])
+        #
+        #     db_material_group_list_dict = MaterialType.objects.values()
+        #     for mg in db_material_group_list_dict:
+        #         material_group_list_din_db.append(mg['material_type'])
+        #
+        #     db_location_list_dict = LocationsForStocks.objects.values()
+        #     for loc in db_location_list_dict:
+        #         stock_location_list_din_db.append(loc['location_of_stocks'])
+        #
+        #     # verifica entry-urile unice (elimina ce se repeta) si verifica daca nu sunt deja in baza de date
+        #     # (verifica doar daca exista brandul in tabelul Brands, grupul de materiale in tabelul MaterialType si locatia in LocationsForStocks)
+        #     for itm in aged_stock_as_lista_de_dict:
+        #         if itm['Brand'] not in brands_list_din_xcel and itm['Brand'] not in brands_list_din_db:
+        #             brands_list_din_xcel.append(itm['Brand'])
+        #         if itm['Matl Group'] not in material_group_list_din_xcel and itm['Matl Group'] not in material_group_list_din_db:
+        #             material_group_list_din_xcel.append(itm['Matl Group'])
+        #         if itm['Stor loc'] not in stock_location_din_xcel and itm['Stor loc'] not in stock_location_list_din_db:
+        #             stock_location_din_xcel.append(itm['Stor loc'])
+        #     # daca am branduri, tipul de material si locatia care nu sunt in baza de data, adauga-le in baza de date
+        #     if len(brands_list_din_xcel)>0:
+        #         for bra in brands_list_din_xcel:
+        #             brandul = Brands(brand=bra)
+        #             brandul.save()
+        #
+        #     if len(material_group_list_din_xcel)>0:
+        #         for mat in material_group_list_din_xcel:
+        #             materialul = MaterialType(material_type=mat)
+        #             materialul.save()
+        #
+        #     if len(stock_location_din_xcel)>0:
+        #         for loca in stock_location_din_xcel:
+        #             locatiunea = LocationsForStocks(location_of_stocks=loca)
+        #             locatiunea.save()
+        #
+        #     # urca toate in baza de date de product
+        #     for prod in aged_stock_as_lista_de_dict:
+        #         if Products.objects.filter(cod_material = prod['Material']).exists() == False:
+        #             new_prod = Products(
+        #                        cod_material = prod['Material'],
+        #                        description = prod['Description'],
+        #                        product_brand = Brands.objects.filter(brand=prod['Brand']).get(),
+        #                        product_material_type = MaterialType.objects.filter(material_type=prod['Matl Group']).get()
+        #             )
+        #             new_prod.save()
+        #     # curata lista
+        #     azi = datetime.date.today()
+        #     data_exp_stoc_bd = AvailableStock.objects.values()
+        #     identification_values_of_stock = list()
+        #     # (la "if" mai jos) (redundant - am un task care curata zilnic prod expirate) verifica ce stocuri sunt expirate din stocurile existente in baza de date, si sterge-le. However functioneaza doar a doua oara cand urc produse in baza de date, pt ca verifica in database, nu in ce urc pt ca nu e de asteptat sa fie urcate stocuri expirate in baza de date
+        #     # (la "elif" mai jos) sterge toate stocurile neatinse (not under offer, nor sold)- verifica daca cantitatea initala == cantitatea actuala
+        #     # (la "else") - la else sunt stocurile neexpirate si "atinse" (under offer sau sold) pe care le pastrez, dar acum trebuie sa le sterg din lista
+        #     # generata din exel (adica daca cumva acelasi produs re-apare in excelul nou)
+        #     for stock0 in data_exp_stoc_bd:
+        #         if azi >= stock0['expiration_date']:
+        #             expiredStockId = stock0['id']
+        #             AvailableStock.objects.get(id = stock0['id']).delete()
+        #         elif stock0['original_quantity_in_kg'] == stock0['available_quantity_in_kg']:
+        #             AvailableStock.objects.get(id = stock0['id']).delete()
+        #         else:
+        #             idOfField = [f'{Products.objects.get(id = stock0["available_product_id"])}', stock0["expiration_date"], stock0["batch"]]
+        #             for dictSet in aged_stock_as_lista_de_dict:
+        #                 if idOfField[0] in list(dictSet.values()):
+        #                     if idOfField[1] in list(dictSet.values()):
+        #                         if idOfField[2] in list(dictSet.values()):
+        #                             aged_stock_as_lista_de_dict.pop(aged_stock_as_lista_de_dict.index(dictSet))
+        #
+        #     # urca toate in baza de date Available stock
+        #     for stock in aged_stock_as_lista_de_dict:
+        #         new_stock = AvailableStock (
+        #                     available_product = Products.objects.filter(cod_material = stock['Material']).get(),
+        #                     stock_location = LocationsForStocks.objects.filter(location_of_stocks = stock['Stor loc']).get(),
+        #                     expiration_date = stock['Expiration date'],
+        #                     batch = stock['Batch'],
+        #                     original_quantity_in_kg = stock['Quantity'],
+        #                     available_quantity_in_kg = stock['Quantity']
+        #                     )
+        #         new_stock.save()
+        #         message = 'uploaded succesfully'
+        #
+        # return render(request, 'aged/agedstockupload.html', {'message':message})
 
 
 @login_required
