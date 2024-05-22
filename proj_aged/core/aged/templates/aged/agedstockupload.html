@@ -7,9 +7,9 @@
 {% if request.method == 'GET' %}
 <form class="form_upload_files" method="post" enctype="multipart/form-data">
   {% csrf_token %}
-  <label class="label_form">Upload .xlsx file containing <span style ="color:red"> aged stock </span> data
-    <span style ="color:red"> ultima coloana din tabel e v-lookup, trebuie modificata cu copy-paste special-text </span>
-  Expectations: the file is xlsx, contains 2 tabs, 1 called "data"
+  <label class="label_form">Upload .xlsx file containing <span style ="color:red"> aged stock </span> data.
+    <span style ="color:red">Expectations: the file is xlsx, contains 1 tab and the headers:  </span>
+    Plnt, Stor loc, Material, Brand, Matl Group, Batch,Quantity, Unrestricted, Expiration date, Description
   </label>
   <br>
   <input class="input_submit" type="file" name="file_2" accept=".xlsx" required>

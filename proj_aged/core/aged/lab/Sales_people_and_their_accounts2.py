@@ -45,14 +45,14 @@ def return_data_frame_without_empty_rows_and_cols(spreadsheet_and_path:str) -> o
     return df
 
 
-def check_headers(expected_headers: list[str], dataframe:object) -> bool:
+def check_headers(expected_headers: list[str], dataframe: object) -> bool:
     """
     Checks the headers in the dataframe against expected headers and returns True if they are the same
     and Fa;se if they are not
     """
-    # Retrieve the actual headers from the DataFrame
+    # retrieve the actual headers from the DataFrame
     actual_headers = dataframe.columns.tolist()
-    # Check if the expected headers match the actual headers
+    # check if the expected headers match the actual headers
     if list(expected_headers) == list(actual_headers):
         return True
     else:

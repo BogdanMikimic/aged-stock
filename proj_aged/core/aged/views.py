@@ -327,6 +327,10 @@ def salespeopleupload(request):
 @login_required
 @user_passes_test(lambda u: u.get_username()=='Mikimic')
 def agedstockupload(request):
+    """
+    Performs checks on the xlsx file containing stock data
+
+    """
     if request.method == 'GET':
         return render(request, 'aged/agedstockupload.html')
     elif request.method == 'POST':
@@ -335,11 +339,35 @@ def agedstockupload(request):
         file_2 = request.FILES['file_2']
         file_object = FileSystemStorage()
         file_object.save(file_name, file_2)
-        # Check if file was already uploaded
+
+        # check if file was already uploaded
         if not check_if_file_was_already_uploaded(f'media/{file_name}'):
             message = 'This file was already uploaded'
             file_object.delete(file_name)
             return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # check if file has only one tab
+        if not only_one_tab_check(f'media/{file_name}'):
+            message = 'File should only have one tab.'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # check if file contains data
+        if not check_spreadsheet_contains_data(f'media/{file_name}'):
+            message = 'The file does not contain any data.'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # return the dataframe
+        dataframe = return_data_frame_without_empty_rows_and_cols(f'media/{file_name}')
+        # check headers
+        requested_headers = ['Plnt', 'Stor loc', 'Material', 'Brand', 'Matl Group', 'Batch,Quantity', 'Unrestricted',
+                             'Expiration date', 'Description']
+        if not check_headers(requested_headers, dataframe):
+            message = f'The file requires the following headers: {requested_headers}'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
         # db_data_file_created_list_dict = CheckIfFileWasAlreadyUploaded.objects.values()
         # db_data_file_created_list = list()
         # for dictionary in db_data_file_created_list_dict:
