@@ -57,7 +57,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         self.browser.quit()  # quits firefox
 
     # And logs into his acocunt - which differs from anyone else's because it has an "Upload Files ->" button
-    def test_log_in_for_admin(self):
+    def test_log_in_and_customer_file_upload_for_admin(self):
         self.browser.get(self.live_server_url)
         username_input = self.browser.find_element(By.ID, 'id_username')
         username_input.send_keys('Mikimic')
@@ -107,12 +107,58 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # and this time the error message is different - telling him about the wrong headers
         self.assertTrue(self.browser.find_element(By.ID, 'upload_status').text.startswith("The file has the wrong headers."))
 
-    # TODO: test create_customer_care_accounts function
-    # TODO: finish create_customer_accounts function
+        # TODO: test create_customer_care_accounts function
+        # TODO: finish create_customer_accounts function
 
-
-
-
-
+    # the admin goes to upload the aged stock file
+    def test_log_in_and_stock_file_upload_for_admin(self):
+        # he logs in to his account
+        self.browser.get(self.live_server_url)
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Mikimic')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('adminpassword')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        upload_files_button = self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢')
+        # He clicks on upload files button
+        upload_files_button.click()
+        # and then he clicks on the aged stock upload
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        # he is greeted by a message that contains the word 'aged stock'
+        self.assertEqual(self.browser.find_element(By.ID,'span_aged_stock').text, 'aged stock')
+        # he navigates to the upload field and browse for a file to upload
+        # unfortunately he uploads the wrong file that has more than one tab
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        wrong_relative_path = 'aged/lab/DataSafeOnes/02_wrong_AgedStock_more_than_one_tab.xlsx'
+        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
+        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # and he is meet by an error message
+        self.assertEqual(self.browser.find_element(By.ID, 'span_message').text,
+                         'The file has more than one tab. Fix file and re-upload')
+        # he goes back
+        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        # he tries again, this time uploading a blank file
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        wrong_relative_path = 'aged/lab/DataSafeOnes/03_wrong_AgedStock_no_data.xlsx'
+        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
+        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # and he is meet by an error message
+        self.assertEqual(self.browser.find_element(By.ID, 'span_message').text,
+                         'The file does not contain any data.')
+        # he goes back
+        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        # he tries again, this time uploading a file with the wrong headers
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        wrong_relative_path = 'aged/lab/DataSafeOnes/04_wrong_AgedStock_not_correct_headers.xlsx'
+        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
+        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # and he is meet by an error message
+        self.assertTrue(self.browser.find_element(By.ID, 'span_message').text.startswith(
+            'The file requires the following headers:'))
 
 

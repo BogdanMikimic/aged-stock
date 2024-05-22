@@ -329,6 +329,10 @@ def salespeopleupload(request):
 def agedstockupload(request):
     """
     Performs checks on the xlsx file containing stock data
+    Checks file only has one tab
+    Checks file contains data
+    Checks file has the right headers
+    Checks file was not uploaded already
 
     """
     if request.method == 'GET':
@@ -340,15 +344,9 @@ def agedstockupload(request):
         file_object = FileSystemStorage()
         file_object.save(file_name, file_2)
 
-        # check if file was already uploaded
-        if not check_if_file_was_already_uploaded(f'media/{file_name}'):
-            message = 'This file was already uploaded'
-            file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
-
         # check if file has only one tab
         if not only_one_tab_check(f'media/{file_name}'):
-            message = 'File should only have one tab.'
+            message = 'The file has more than one tab. Fix file and re-upload'
             file_object.delete(file_name)
             return render(request, 'aged/agedstockupload.html', {'message': message})
 
@@ -365,6 +363,12 @@ def agedstockupload(request):
                              'Expiration date', 'Description']
         if not check_headers(requested_headers, dataframe):
             message = f'The file requires the following headers: {requested_headers}'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # check if file was already uploaded
+        if not check_if_file_was_already_uploaded(f'media/{file_name}'):
+            message = 'This file was already uploaded'
             file_object.delete(file_name)
             return render(request, 'aged/agedstockupload.html', {'message': message})
 

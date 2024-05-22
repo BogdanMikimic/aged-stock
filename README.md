@@ -1,6 +1,6 @@
 # Stock management tool
 This application is a tiered web tool designed for aged stock management, catering to three user levels: admins, managers, and salespeople. 
-Its core function is to streamline the handling of inventory of products nearing expiration date.
+Its core function is to streamline the handling of inventory of products nearing expiration date (called aged stock).
 
 ## User Access: 
 Only pre-existing accounts can access the tool, with account creation exclusive to admins.

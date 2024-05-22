@@ -25,7 +25,6 @@ def check_if_file_was_already_uploaded(xlsx_file_path: str) -> bool:
         return False
 
 
-
 class AgedStock:
     # ia ca argument fisierul excel cu aged stock, o citeste, si o intoarce ca lista de dictionare
     # prin optiunea load_workbook(fisier.xlsx, data_only=True) -> data_only=True aduce valorile in loc de formule
@@ -37,15 +36,6 @@ class AgedStock:
         self.table_as_list_of_dicts = list()
         self.row_count = 0
         self.cell_count = 0
-
-
-    def checkFileHasCorrectTabs(self):
-        #expectation: table has tab 1 called pivot, tab 2 called data -> wee need data
-        pass
-
-    def checkIfTabHasTheRight(self):
-        #expectation: headings are called 'Plnt' 'Stor loc' 'Material' 'Brand' 'Matl Group' 'Batch' 'Quantity' 'Unrestricted' 'Expiration date' 'Description'
-        pass
 
 
     def runAll(self):
