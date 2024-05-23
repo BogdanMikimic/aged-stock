@@ -5,12 +5,20 @@ from .models import *
 from django.contrib.auth.decorators import user_passes_test
 from django.core.files.storage import FileSystemStorage # deals with file stored on drive
 from django.http import HttpResponse # returns files to download
-from .lab.Aged_stock import check_if_file_was_already_uploaded
+
+# Aged stock xlsx file processing functions
+from .lab.Aged_stock import check_if_file_was_already_uploaded,\
+      get_brand_into_db,\
+      get_material_type_into_db,\
+      get_stock_location_in_database,\
+      get_products_in_the_database
+
 from .lab.writePdfOffer import PdfOfferCreator
 from .lab.AgedMailSender import MailSender
 import datetime
 import textwrap
-from openpyxl import load_workbook
+
+# Salespeople, accounts xlsx file processing functions
 from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data, \
     return_data_frame_without_empty_rows_and_cols,\
@@ -254,7 +262,7 @@ def fileupload(request):
 @user_passes_test(lambda u: u.get_username() == 'Mikimic')
 def salespeopleupload(request):
     """
-    Pares the xlsx and notifies if User accounts have to be created or deleted
+    Parses the xlsx and notifies if User accounts have to be created or deleted
     Creates, deletes customer care accounts
     Creates/retires customer accounts
     """
@@ -333,6 +341,8 @@ def agedstockupload(request):
     Checks file contains data
     Checks file has the right headers
     Checks file was not uploaded already
+    Uploads brands in the database
+    Uploads material types in the database (Chocolate, nuts, etc)
 
     """
     if request.method == 'GET':
@@ -372,21 +382,19 @@ def agedstockupload(request):
             file_object.delete(file_name)
             return render(request, 'aged/agedstockupload.html', {'message': message})
 
-        # db_data_file_created_list_dict = CheckIfFileWasAlreadyUploaded.objects.values()
-        # db_data_file_created_list = list()
-        # for dictionary in db_data_file_created_list_dict:
-        #     db_data_file_created_list.append(dictionary['data_creare_fisier'])
-        #
-        # wb = load_workbook(f'media/{file_name}')
-        # data_file_was_created = str(wb.properties.created)
-        # if data_file_was_created in db_data_file_created_list:
-        #     message = 'already uploaded'
-        #     file_object.delete(file_name)
-        # else:
-        #     newDate = CheckIfFileWasAlreadyUploaded(data_creare_fisier=data_file_was_created)
-        #     newDate.save()
-        #     aged_stock_as_lista_de_dict = Aged_stock.AgedStock(f'media/{file_name}').runAll()
-        #     file_object.delete(file_name)
+        # add new brands into the database
+        get_brand_into_db(dataframe)
+        # add new material types into the database
+        get_material_type_into_db(dataframe)
+        # add new locations into the database
+        get_stock_location_in_database(dataframe)
+
+        # last line
+        file_object.delete(file_name)
+        message = 'File uploaded'
+        return render(request, 'aged/agedstockupload.html', {'message': message})
+
+
         #     # brand, material group (adica tipul de material, gen ciocolata, nuci, etc) si stock location sunt in tabele separate fiecare
         #     # de asta verific daca ele exista deja in baza de date
         #     # pentru asta creez niste liste separate, caut ce valori unice (care nu se repeta) am in excel

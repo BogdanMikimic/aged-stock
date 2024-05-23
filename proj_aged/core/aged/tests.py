@@ -166,6 +166,6 @@ class CheckAgedStockUploads(TestCase):
     def test_aged_stock_file_upload(self):
         # check file was not yet uploaded - returns False if not
         self.assertFalse(check_if_file_was_already_uploaded("aged\\lab\\DataSafeOnes\\01_good_AgedStock.xlsx"))
-        # run the test again with the same file and it should return True
+        # run the test again with the same file, and it should return True
         self.assertTrue(check_if_file_was_already_uploaded("aged\\lab\\DataSafeOnes\\01_good_AgedStock.xlsx"))
 
