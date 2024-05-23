@@ -8,10 +8,10 @@ from django.http import HttpResponse # returns files to download
 
 # Aged stock xlsx file processing functions
 from .lab.Aged_stock import check_if_file_was_already_uploaded,\
-      get_brand_into_db,\
-      get_material_type_into_db,\
-      get_stock_location_in_database,\
-      get_products_in_the_database
+      put_brand_into_db,\
+      put_material_type_into_db,\
+      put_stock_location_in_database,\
+      put_products_in_the_database
 
 from .lab.writePdfOffer import PdfOfferCreator
 from .lab.AgedMailSender import MailSender
@@ -383,11 +383,13 @@ def agedstockupload(request):
             return render(request, 'aged/agedstockupload.html', {'message': message})
 
         # add new brands into the database
-        get_brand_into_db(dataframe)
+        put_brand_into_db(dataframe)
         # add new material types into the database
-        get_material_type_into_db(dataframe)
+        put_material_type_into_db(dataframe)
         # add new locations into the database
-        get_stock_location_in_database(dataframe)
+        put_stock_location_in_database(dataframe)
+        # add products to the database
+        put_products_in_the_database(dataframe)
 
         # last line
         file_object.delete(file_name)

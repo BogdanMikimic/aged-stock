@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
-from .models import CustomerService, Customers
+from .models import CustomerService, Customers, Brands, MaterialType, Products, LocationsForStocks
 import pandas as pd
 from aged.lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data,\
@@ -9,7 +9,12 @@ from aged.lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_salespeople_in_database,\
     create_customer_care_accounts,\
     create_customer_accounts
-from aged.lab.Aged_stock import check_if_file_was_already_uploaded
+from aged.lab.Aged_stock import check_if_file_was_already_uploaded, \
+    put_brand_into_db, \
+    put_material_type_into_db, \
+    put_stock_location_in_database, \
+    check_is_expired, \
+    put_products_in_the_database
 
 class CheckSalespeopleFileUpload(TestCase):
 
@@ -168,4 +173,53 @@ class CheckAgedStockUploads(TestCase):
         self.assertFalse(check_if_file_was_already_uploaded("aged\\lab\\DataSafeOnes\\01_good_AgedStock.xlsx"))
         # run the test again with the same file, and it should return True
         self.assertTrue(check_if_file_was_already_uploaded("aged\\lab\\DataSafeOnes\\01_good_AgedStock.xlsx"))
+
+    def test_brand_uploaded_in_database(self):
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\05_good_AgedStock_only_two_brands.xlsx")
+        put_brand_into_db(dataframe)
+        brands_in_database = Brands.objects.values_list('brand', flat=True)
+        # check that are only 2 brands in the database
+        self.assertEqual(len(brands_in_database), 2)
+        # test that Chocogreat is in the database
+        self.assertTrue('Chocogreat' in brands_in_database)
+        # test that ChocoNotSoGreat is in the database
+        self.assertTrue('ChocoNotSoGreat' in brands_in_database)
+
+    def test_material_type_uploaded_into_database(self):
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\05_good_AgedStock_only_two_brands.xlsx")
+        put_material_type_into_db(dataframe)
+        materials_in_database = MaterialType.objects.values_list('material_type', flat=True)
+        # check that are only 3 materials in the database
+        self.assertEqual(len(materials_in_database), 3)
+        # test that CHOCOLATE is in the database
+        self.assertTrue('CHOCOLATE' in materials_in_database)
+        # test that NUTS is in the database
+        self.assertTrue('NUTS' in materials_in_database)
+        # test that COMPOUNDS is in the database
+        self.assertTrue('COMPOUNDS' in materials_in_database)
+
+    def test_stock_location_uploaded_into_database(self):
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\05_good_AgedStock_only_two_brands.xlsx")
+        put_stock_location_in_database(dataframe)
+        stock_locations = LocationsForStocks.objects.values_list('location_of_stocks', flat=True)
+        # check that are only 3 materials in the database
+        self.assertEqual(len(stock_locations), 1)
+        # test that GBX is in the database
+        self.assertTrue('GBX' in stock_locations)
+
+    def test_check_is_expired(self):
+        self.assertTrue(check_is_expired('2024-01-12'))
+        self.assertFalse(check_is_expired('2024-06-12'))
+
+    def test_products_uploaded_into_database(self):
+        dataframe = return_data_frame_without_empty_rows_and_cols(
+            "aged\\lab\\DataSafeOnes\\05_good_AgedStock_only_two_brands.xlsx")
+        put_brand_into_db(dataframe)
+        put_material_type_into_db(dataframe)
+        put_products_in_the_database(dataframe)
+        products_in_database_count = Products.objects.all().count()
+        self.assertEqual(products_in_database_count, 10)
 

@@ -162,3 +162,13 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
             'The file requires the following headers:'))
 
 
+        # he goes back
+        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        # he tries again, this time uploading a file with the wrong headers
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        wrong_relative_path = 'aged/lab/DataSafeOnes/05_good_AgedStock_only_two_brands.xlsx'
+        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
+        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        self.fail('finish the test')

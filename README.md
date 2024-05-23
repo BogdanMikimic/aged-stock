@@ -22,6 +22,9 @@ There are 3 types of accounts:
 * second type of file is a xlsx containing information about aged stock available in the company
 * the admin had the same restrictions and checks are performed as for the file above
 
+## Database structure
+* see attached database schema
+
 ## Dashboard: 
 Displays aged stocks in descending order by expiration, featuring dynamic filters based on stock attributes (e.g., "compounds") and a search functionality.
 
