@@ -145,7 +145,6 @@ def put_available_stock_in_the_database(dataframe: object) -> None:
         row = dataframe.iloc[i]
         product = Products.objects.filter(cod_material=row['Material']).get()
         # check the product is not already expired in the xlsx file
-        print(row['Expiration date'], type(row['Expiration date']))
         if not check_is_expired_in_xlsx(row['Expiration date']):
             # checks if the product with the same code, batch number and expiration date exists in the database
             # if it exists it ignores it and trusts the available stock

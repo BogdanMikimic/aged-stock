@@ -15,7 +15,8 @@ from aged.lab.Aged_stock import check_if_file_was_already_uploaded, \
     put_stock_location_in_database, \
     check_is_expired_in_xlsx, \
     put_products_in_the_database, \
-    put_available_stock_in_the_database
+    put_available_stock_in_the_database, \
+    date_to_string_or_string_to_date
 
 class CheckSalespeopleFileUpload(TestCase):
 
@@ -238,6 +239,34 @@ class CheckAgedStockUploads(TestCase):
 
     def test_available_stock_in_database(self):
         self.populate_stocks_database("aged\\lab\\DataSafeOnes\\05_good_AgedStock_only_two_brands.xlsx")
-        all_stock = AvailableStock.objects.all()
+
         # check that 10 products have been uploaded in the available stock database
-        self.assertEqual(len(all_stock), 10)
+        self.assertEqual(AvailableStock.objects.count(), 10)
+        # check that a few specific products are in the database
+        self.assertTrue(
+            AvailableStock.objects.filter(
+                available_product=Products.objects.filter(cod_material='CHO-005-995').get(),
+                stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
+                expiration_date=date_to_string_or_string_to_date('2024-12-20'),
+                batch='3883079',
+                original_quantity_in_kg=140,
+                under_offer_quantity_in_kg=0,
+                sold_quantity_in_kg=0,
+                available_quantity_in_kg=140
+
+            ).exists()
+        )
+        self.assertTrue(
+            AvailableStock.objects.filter(
+                available_product=Products.objects.filter(cod_material='CHO-009-457').get(),
+                stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
+                expiration_date=date_to_string_or_string_to_date('2024-12-19'),
+                batch='611706454092',
+                original_quantity_in_kg=520,
+                under_offer_quantity_in_kg=0,
+                sold_quantity_in_kg=0,
+                available_quantity_in_kg=520
+
+            ).exists()
+        )
+
