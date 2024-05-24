@@ -13,6 +13,7 @@ import os
 class LoginIsRequired(StaticLiveServerTestCase):
     def setUp(self) -> None:  # This code runs once BEFORE EACH test
         self.browser = webdriver.Firefox() # starts firefox
+        self.browser.implicitly_wait(5)
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
         self.browser.quit() # quits firefox
@@ -50,7 +51,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
             password='adminpassword',
             email='admin@example.com'
         )
-        self.browser.implicitly_wait(5)
+
 
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test

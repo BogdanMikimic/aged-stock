@@ -91,8 +91,8 @@ class CheckIfFileWasAlreadyUploaded(models.Model):
 
 class AvailableStock(models.Model):
     # stock is linked to product and location
-    available_product = models.ForeignKey(Products, null=True, blank=True, on_delete=models.SET_NULL) #default='Product was deleted', on_delete=models.SET_DEFAULT
-    stock_location = models.ForeignKey(LocationsForStocks, null=True, blank=True, on_delete=models.SET_NULL) # default='Location was deleted', on_delete=models.SET_DEFAULT
+    available_product = models.ForeignKey(Products, null=True, blank=True, on_delete=models.RESTRICT)
+    stock_location = models.ForeignKey(LocationsForStocks, null=True, blank=True, on_delete=models.RESTRICT)
     expiration_date = models.DateField()
     batch = models.CharField(max_length = 100)
     original_quantity_in_kg = models.IntegerField()

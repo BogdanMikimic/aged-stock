@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
-from .models import CustomerService, Customers, Brands, MaterialType, Products, LocationsForStocks
+from .models import CustomerService, Customers, Brands, MaterialType, Products, LocationsForStocks, AvailableStock
 import pandas as pd
 from aged.lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_spreadsheet_contains_data,\
@@ -13,8 +13,9 @@ from aged.lab.Aged_stock import check_if_file_was_already_uploaded, \
     put_brand_into_db, \
     put_material_type_into_db, \
     put_stock_location_in_database, \
-    check_is_expired, \
-    put_products_in_the_database
+    check_is_expired_in_xlsx, \
+    put_products_in_the_database, \
+    put_available_stock_in_the_database
 
 class CheckSalespeopleFileUpload(TestCase):
 
@@ -211,8 +212,8 @@ class CheckAgedStockUploads(TestCase):
         self.assertTrue('GBX' in stock_locations)
 
     def test_check_is_expired(self):
-        self.assertTrue(check_is_expired('2024-01-12'))
-        self.assertFalse(check_is_expired('2024-06-12'))
+        self.assertTrue(check_is_expired_in_xlsx('2024-01-12'))
+        self.assertFalse(check_is_expired_in_xlsx('2024-06-12'))
 
     def test_products_uploaded_into_database(self):
         dataframe = return_data_frame_without_empty_rows_and_cols(
@@ -223,3 +224,20 @@ class CheckAgedStockUploads(TestCase):
         products_in_database_count = Products.objects.all().count()
         self.assertEqual(products_in_database_count, 10)
 
+    def populate_stocks_database(self, path_to_xlsx_with_aged_stocks:str) -> None:
+        """
+        Goes through the full sequence of uploading aged stock in the database
+        in different models up to and including populating the available stock model.
+        """
+        dataframe = return_data_frame_without_empty_rows_and_cols(path_to_xlsx_with_aged_stocks)
+        put_brand_into_db(dataframe)
+        put_material_type_into_db(dataframe)
+        put_stock_location_in_database(dataframe)
+        put_products_in_the_database(dataframe)
+        put_available_stock_in_the_database(dataframe)
+
+    def test_available_stock_in_database(self):
+        self.populate_stocks_database("aged\\lab\\DataSafeOnes\\05_good_AgedStock_only_two_brands.xlsx")
+        all_stock = AvailableStock.objects.all()
+        # check that 10 products have been uploaded in the available stock database
+        self.assertEqual(len(all_stock), 10)

@@ -11,7 +11,8 @@ from .lab.Aged_stock import check_if_file_was_already_uploaded,\
       put_brand_into_db,\
       put_material_type_into_db,\
       put_stock_location_in_database,\
-      put_products_in_the_database
+      put_products_in_the_database,\
+      put_available_stock_in_the_database
 
 from .lab.writePdfOffer import PdfOfferCreator
 from .lab.AgedMailSender import MailSender
@@ -390,6 +391,8 @@ def agedstockupload(request):
         put_stock_location_in_database(dataframe)
         # add products to the database
         put_products_in_the_database(dataframe)
+        # populate the available stock table
+        put_available_stock_in_the_database(dataframe)
 
         # last line
         file_object.delete(file_name)
@@ -397,69 +400,6 @@ def agedstockupload(request):
         return render(request, 'aged/agedstockupload.html', {'message': message})
 
 
-        #     # brand, material group (adica tipul de material, gen ciocolata, nuci, etc) si stock location sunt in tabele separate fiecare
-        #     # de asta verific daca ele exista deja in baza de date
-        #     # pentru asta creez niste liste separate, caut ce valori unice (care nu se repeta) am in excel
-        #     # scot listele si din baza de date si verific intre ele ce nu exista
-        #     # toate astea sunt legate de un "Product"
-        #
-        #     # liste pt excel
-        #     brands_list_din_xcel = list()
-        #     material_group_list_din_xcel = list()
-        #     stock_location_din_xcel = list()
-        #     # liste pt baza de date
-        #     brands_list_din_db = list()
-        #     material_group_list_din_db = list()
-        #     stock_location_list_din_db = list()
-        #
-        #     # retrievuie datele din baza de date si adauga-le intr-o lista
-        #     db_brands_list_dict = Brands.objects.values()
-        #     for br in db_brands_list_dict:
-        #         brands_list_din_db.append(br['brand'])
-        #
-        #     db_material_group_list_dict = MaterialType.objects.values()
-        #     for mg in db_material_group_list_dict:
-        #         material_group_list_din_db.append(mg['material_type'])
-        #
-        #     db_location_list_dict = LocationsForStocks.objects.values()
-        #     for loc in db_location_list_dict:
-        #         stock_location_list_din_db.append(loc['location_of_stocks'])
-        #
-        #     # verifica entry-urile unice (elimina ce se repeta) si verifica daca nu sunt deja in baza de date
-        #     # (verifica doar daca exista brandul in tabelul Brands, grupul de materiale in tabelul MaterialType si locatia in LocationsForStocks)
-        #     for itm in aged_stock_as_lista_de_dict:
-        #         if itm['Brand'] not in brands_list_din_xcel and itm['Brand'] not in brands_list_din_db:
-        #             brands_list_din_xcel.append(itm['Brand'])
-        #         if itm['Matl Group'] not in material_group_list_din_xcel and itm['Matl Group'] not in material_group_list_din_db:
-        #             material_group_list_din_xcel.append(itm['Matl Group'])
-        #         if itm['Stor loc'] not in stock_location_din_xcel and itm['Stor loc'] not in stock_location_list_din_db:
-        #             stock_location_din_xcel.append(itm['Stor loc'])
-        #     # daca am branduri, tipul de material si locatia care nu sunt in baza de data, adauga-le in baza de date
-        #     if len(brands_list_din_xcel)>0:
-        #         for bra in brands_list_din_xcel:
-        #             brandul = Brands(brand=bra)
-        #             brandul.save()
-        #
-        #     if len(material_group_list_din_xcel)>0:
-        #         for mat in material_group_list_din_xcel:
-        #             materialul = MaterialType(material_type=mat)
-        #             materialul.save()
-        #
-        #     if len(stock_location_din_xcel)>0:
-        #         for loca in stock_location_din_xcel:
-        #             locatiunea = LocationsForStocks(location_of_stocks=loca)
-        #             locatiunea.save()
-        #
-        #     # urca toate in baza de date de product
-        #     for prod in aged_stock_as_lista_de_dict:
-        #         if Products.objects.filter(cod_material = prod['Material']).exists() == False:
-        #             new_prod = Products(
-        #                        cod_material = prod['Material'],
-        #                        description = prod['Description'],
-        #                        product_brand = Brands.objects.filter(brand=prod['Brand']).get(),
-        #                        product_material_type = MaterialType.objects.filter(material_type=prod['Matl Group']).get()
-        #             )
-        #             new_prod.save()
         #     # curata lista
         #     azi = datetime.date.today()
         #     data_exp_stoc_bd = AvailableStock.objects.values()
