@@ -188,29 +188,27 @@ def agedstockupload(request):
 # --------------- users/superusers check available stock
 @login_required
 def userseallstock(request):
-    # push all materials to template to use with custom tags in HTML and JS for filtering
-    # each material that is available in active, is pushed to the table
-    all_materials = MaterialType.objects.all()
-    material_csv = str()
-    # create a CSV like list of materials to feed to a hidden tag and use it in js
-
-    for number, mat in enumerate(all_materials):
-        if number+1 < 11:
-            # this has a trailing comma
-            material_csv +=f'{mat.material_type},'
-        else:
-            # this does NOT have a trailing comma
-            material_csv +=f'{mat.material_type}'
-
     # retrieve all stock that was offered or sold
     # do not show expired stock
     touched_stock = OffersLog.objects.filter(stock_expired=False)
     # retrieve all available stock
     free_stock_all = AvailableStock.objects.all().order_by('expiration_date')
+    # push all materials to template to use with custom tags in HTML and JS for filtering
+    # each material that is available in free and touched stock, is pushed to the table
+    material = set()
+    materiale = set()
+    for itm in touched_stock:
+        material.add(itm.offered_product.product_material_type.material_type)
+        materiale.add(itm.offered_product.product_material_type)
+    for itm in free_stock_all:
+        material.add(itm.available_product.product_material_type.material_type)
+        materiale.add(itm.available_product.product_material_type)
+    material_csv = ",".join(material)
+    print(f'material set: {material}, material csv: {material_csv}')
     return render(request, 'aged/userseallstock.html',
                   {'freeStockAll': free_stock_all,
                    'touchedStock': touched_stock,
-                   'materiale': all_materials,
+                   'materiale': materiale,
                    'materialCsv': material_csv})
 
 

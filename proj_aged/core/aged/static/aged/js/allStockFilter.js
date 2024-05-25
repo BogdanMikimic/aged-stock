@@ -14,16 +14,23 @@ const allTr = document.querySelectorAll('tr')
 
 
 class HideStuff {
+// this is applied to all checkboxes on the page that shows the stocks
+// it toggles display/don't display the table rows containing the material
+// specified in the checkbox
   constructor(name, allTrElements) {
     this.name = name;
     // these are all rows with available stock in the table
     this.alltr = allTrElements;
+    // these gets a particular checkbox (as an argument)
     this.getCheckbox = document.querySelector(('#' + this.name));
-    this.getCheckbox.addEventListener('click', this.showMe.bind(this));
+    // this ads an event listener to the
+    this.getCheckbox.addEventListener('click', this.show_or_hide_row.bind(this));
   }
 
-
-  showMe() {
+// shows or hides the rows based on what checkbox is selected
+// crosschecks if sold or under offer are hidden or visible when
+// deciding to show or hide a certain row
+  show_or_hide_row() {
     if (this.getCheckbox.checked == 1) {
       for (const attr of this.alltr) {
         if (attr.getAttribute('data-material') == this.name) {
@@ -57,7 +64,8 @@ for (const mat of arrayOfMaterials) {
   cbObjArray.push(new HideStuff(mat, allTr))
 }
 
-function showHideUnderOfer() {
+// shows or hides material under offer
+function showHideUnderOffer() {
   if (checkBoxUnderOffer.checked == 1) {
     for (const line of offeredTrLst) {
       line.style.visibility = 'collapse'
@@ -77,7 +85,7 @@ function showHideUnderOfer() {
   }
 }
 
-checkBoxUnderOffer.addEventListener('click', showHideUnderOfer)
+checkBoxUnderOffer.addEventListener('click', showHideUnderOffer)
 
 function showHideSold() {
   if (checkBoxSold.checked == 1) {
@@ -105,8 +113,8 @@ const filterContainer = document.querySelector("#div_filter_container")
 filterContainer.style.display = "none"
 const filterActivator = document.querySelector("#p_filter_message")
 
-
-function showHideFiltContain(){
+// this is the
+function showHideFilterContainer(){
   if(filterContainer.style.display=="none")
   {
     filterContainer.style.display = "block"
@@ -119,7 +127,7 @@ function showHideFiltContain(){
   }
 }
 
-filterActivator.addEventListener('click', showHideFiltContain)
+filterActivator.addEventListener('click', showHideFilterContainer)
 
 // Search bar
 const searchBar = document.getElementById("searchBar")

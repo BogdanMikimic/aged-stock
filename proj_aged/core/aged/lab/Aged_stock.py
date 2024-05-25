@@ -42,7 +42,7 @@ def put_brand_into_db(dataframe: object) -> None:
 
 def put_material_type_into_db(dataframe: object) -> None:
     """
-    Brings unique material types into the database.
+    Creates unique materials types into the database, if they don;t exist.
     There is a small number of material types (Chocolate, nuts, etc),
     and most of them will stay the same through, so no material type is
     deleted.
@@ -52,9 +52,18 @@ def put_material_type_into_db(dataframe: object) -> None:
     """
     material_types_in_xlsx_set = set(dataframe['Matl Group'].tolist())
     for xlsx_material_type in material_types_in_xlsx_set:
+        # check if any material contains punctuation or numbers
+        # (punctuation is not needed and interfere with javascript filtration by material type later
+        # on if not addressed)
+        if all(char.isalpha() for char in xlsx_material_type):
+            clean_material_name = xlsx_material_type
+        else:
+            clean_material_name = ''.join([char for char in xlsx_material_type if char.isalpha()])
+        # update/create material in the database
         MaterialType.objects.update_or_create(
             material_type=xlsx_material_type
         )
+
 
 
 def put_stock_location_in_database(dataframe: object) -> None:

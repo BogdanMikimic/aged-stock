@@ -114,7 +114,7 @@ class OffersLog(models.Model):
     customer_that_received_offer = models.ForeignKey(Customers, on_delete=models.RESTRICT)
     offered_sold_or_declined_quantity_kg = models.IntegerField()
     STATUS_CHOICES = ( ('Offered', 'Offered'), ('Declined', 'Declined'), ('Sold', 'Sold'), ('Offer Expired', 'Offer Expired'))
-    offer_status =  models.CharField(max_length=20, choices=STATUS_CHOICES)
+    offer_status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     discount_offered_percents = models.DecimalField(max_digits=5, decimal_places=2)
     price_per_kg_offered = models.DecimalField(max_digits=7, decimal_places=2)
     date_of_offer = models.DateField()
