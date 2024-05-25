@@ -29,8 +29,7 @@ from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     create_customer_accounts,\
     do_not_use_in_production_automatic_accounts_creation
 
-# Homepage. Returnuie pagina de user sau superuser, depinde cine o acceseaza
-# In ambele cazuri pagina contine doar linkuri spre alte sectiuni
+# homepage
 @login_required
 def homepage(request):
     if request.user.is_superuser:
@@ -39,107 +38,183 @@ def homepage(request):
         return render(request, 'aged/userhome.html')
 
 
-# Opens the page where superusers can see the reports of who sold what, what is under offer, declined, etc
-@user_passes_test(lambda u: u.is_superuser)
-def superuserreports(request):
-    # if you chose a certain value in one of the filters (such as a certain salesperson)
-    # you will be served a page where the value will be prefilled (ie. if you filter by Sarah the filter will stay on Sarah )
-    # that is what the dict does
-    preselectValues = dict()
-    preselectValues['salesperson'] = 'All'
-    preselectValues['state'] = 'All'
-    preselectValues['start'] = ''
-    preselectValues['end'] = ''
-    # data standard e cu 60 de zile in urma + 30 de zile in viitor pt cei care au pregatit oferte pt saptamana viitoare
-    aziPlus30 = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
-    firstDateOfOffersSpan = str(datetime.datetime.today().date() - datetime.timedelta(days=60))
-    obj = OffersLog.objects.filter(date_of_offer__range=[firstDateOfOffersSpan, aziPlus30]).all()
-
-    # creez doua seturi ca sa elimin duplicatele de nume (ie daca Sarah are mai multe oferte, numele ei sa apara o data)
-    # al doilea set e statusul posibil al ofertelor bazat pe populatia din baza de date (ie, daca nu exista nimeni cu sold, sold nu apare printre optiuni)
-    allUsersWithOffers = set()
-    allOfferStatus = set()
-    # populez seturile
-    for ob in obj:
-        allUsersWithOffers.add(ob.sales_rep_that_made_the_offer.username)
-        allOfferStatus.add(ob.offer_status)
-
-    # seturile nu sunt ordonate si nu contin varianta 'All', asa ca le fac lista, sortez si adaug 'All'
-    allUsersWithOffers = list(allUsersWithOffers)
-    allUsersWithOffers.sort()
-    allUsersWithOffers.insert(0, 'All')
-
-    allOfferStatus = list(allOfferStatus)
-    allOfferStatus.sort()
-    allOfferStatus.insert(0, 'All')
-
-    if request.method == 'POST':
-        stateOfOffers = request.POST.get('offerStatus')
-        preselectValues['state'] = stateOfOffers
-
-        nameOfUser = request.POST.get('nameOfUser')
-        preselectValues['salesperson'] = nameOfUser
-
-        start = request.POST.get('startDate')
-        end = request.POST.get('endDate')
-
-        # no start or end
-        if start == '' and end =='':
-            # ultimele doua luni doar
-            start = firstDateOfOffersSpan
-            end = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
-        # start, no end
-        elif start != '' and end == '':
-            end = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
-        # end no start
-        elif start == '' and end != '':
-            start = firstDateOfOffersSpan
-        # start and end
-        elif start != '' and end != '':
-            pass
-
-        preselectValues['start'] = start
-        preselectValues['end'] = end
-
-        if nameOfUser != 'All':
-            idOfUser = User.objects.filter(username=nameOfUser).get().id
-            obj = OffersLog.objects.filter(date_of_offer__range=[start, end], sales_rep_that_made_the_offer=idOfUser).all()
-            if stateOfOffers != 'All':
-                obj = OffersLog.objects.filter(date_of_offer__range=[start, end], sales_rep_that_made_the_offer=idOfUser, offer_status=stateOfOffers).all()
-
-        # search for a particular user
-        elif nameOfUser == 'All':
-            obj = OffersLog.objects.filter(date_of_offer__range=[start, end]).all()
-            if stateOfOffers != 'All':
-                obj = OffersLog.objects.filter(date_of_offer__range=[start, end], offer_status=stateOfOffers).all()
+# --------- uploading xlsx files in the database
+@user_passes_test(lambda u: u.get_username() == 'Mikimic')
+def fileupload(request):
+    return render(request, 'aged/fileupload.html')
 
 
+# this it is only available to me (file to upload salespeople, customer care people and company names .xlsx file)
+@login_required
+@user_passes_test(lambda u: u.get_username() == 'Mikimic')
+def salespeopleupload(request):
+    """
+    Parses the xlsx and notifies if User accounts have to be created or deleted
+    Creates, deletes customer care accounts
+    Creates/retires customer accounts
+    """
+    if request.method == 'GET':
+        return render(request, 'aged/salespeopleupload.html')
+    elif request.method == 'POST':
+        # upload xlsx file with accounts and sales people
+        file_name = 'people.xlsx'
+        file_1 = request.FILES['file_1']
+        file_object = FileSystemStorage()
+        file_object.save(file_name, file_1)
+        file_name_with_path = f'media/{file_name}'
 
-    return render(request, 'aged/superuserreports.html', {'objects':obj, 'allUsersWithOffers':allUsersWithOffers, 'allOfferStatus':allOfferStatus, 'preselectValues':preselectValues})
+        # check xlsx has only one tab
+        if not only_one_tab_check(file_name_with_path):
+            file_object.delete(file_name)
+            upload_status = 'The file has more than one tab. Fix file and re-upload'
+            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+
+        # check spreadsheet not blank
+        if not check_spreadsheet_contains_data(file_name_with_path):
+            file_object.delete(file_name)
+            upload_status = 'The file has no data. Fix file and re-upload'
+            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+
+        # check that the spreadsheet contains the expected headers
+        dataframe = return_data_frame_without_empty_rows_and_cols(file_name_with_path)
+        expected_headers = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
+        if not check_headers(expected_headers, dataframe):
+            file_object.delete(file_name)
+            upload_status = f'The file has the wrong headers. The expected headers are: {" ".join(expected_headers)}. Fix file and re-upload'
+            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+
+        # delete the xlsx file from database
+        file_object.delete(file_name)
+
+        # check that all users are in the database and that deleting or creating some is not required
+        if not check_salespeople_in_database(dataframe):
+            acc_to_create_or_delete = check_salespeople_in_database(dataframe)
+            message_create = ''
+            accounts_to_create = list()
+            message_delete = ''
+            accounts_to_delete = list()
+
+            if len(acc_to_create_or_delete[0]) > 0:
+                message_create = textwrap.dedent('''Customers are linked to sales people,
+                                                   so salespeople accounts need to be created first.
+                                                   The following accounts need to be created:''')
+                accounts_to_create = acc_to_create_or_delete[0]
+            else:
+                message_create = textwrap.dedent('''No sales people account to create''')
+
+            if len(acc_to_create_or_delete[1]) > 0:
+                message_delete = textwrap.dedent('''There are a few sales people accounts to create:''')
+
+            # do_not_use_in_production_automatic_accounts_creation(dataframe)
+
+            return render(request, 'aged/salespeopleupload.html', {'message_create': message_create,
+                                                                   'message_delete': message_delete,
+                                                                   'accounts_to_create': accounts_to_create,
+                                                                   'accounts_to_delete': accounts_to_delete,
+                                                                   })
+        else:
+            create_customer_care_accounts(dataframe)
+            create_customer_accounts(dataframe)
+            message = 'All accounts updated'
+            return render(request, 'aged/salespeopleupload.html', {'message': message})
 
 
-# asta e pagina care arata tabelul cu toate produsele avalialable si under offer
+@login_required
+@user_passes_test(lambda u: u.get_username() == 'Mikimic')
+def agedstockupload(request):
+    """
+    Performs checks on the xlsx file containing stock data
+    Checks file only has one tab
+    Checks file contains data
+    Checks file has the right headers
+    Checks file was not uploaded already
+    Uploads brands in the database
+    Uploads material types in the database (Chocolate, nuts, etc)
+
+    """
+    if request.method == 'GET':
+        return render(request, 'aged/agedstockupload.html')
+    elif request.method == 'POST':
+        # upload file, read content, delete file - return content as dict
+        file_name = 'stock.xlsx'
+        file_2 = request.FILES['file_2']
+        file_object = FileSystemStorage()
+        file_object.save(file_name, file_2)
+
+        # check if file has only one tab
+        if not only_one_tab_check(f'media/{file_name}'):
+            message = 'The file has more than one tab. Fix file and re-upload'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # check if file contains data
+        if not check_spreadsheet_contains_data(f'media/{file_name}'):
+            message = 'The file does not contain any data.'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # return the dataframe
+        dataframe = return_data_frame_without_empty_rows_and_cols(f'media/{file_name}')
+        # check headers
+        requested_headers = ['Plnt', 'Stor loc', 'Material', 'Brand', 'Matl Group', 'Batch', 'Quantity', 'Unrestricted',
+                             'Expiration date', 'Description']
+        if not check_headers(requested_headers, dataframe):
+            message = f'The file requires the following headers: {", ".join(requested_headers)}'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # check if file was already uploaded
+        if check_if_file_was_already_uploaded(f'media/{file_name}'):
+            message = 'This file was already uploaded'
+            file_object.delete(file_name)
+            return render(request, 'aged/agedstockupload.html', {'message': message})
+
+        # add new brands into the database
+        put_brand_into_db(dataframe)
+        # add new material types into the database
+        put_material_type_into_db(dataframe)
+        # add new locations into the database
+        put_stock_location_in_database(dataframe)
+        # add products to the database
+        put_products_in_the_database(dataframe)
+        # populate the available stock table
+        put_available_stock_in_the_database(dataframe)
+
+        file_object.delete(file_name)
+        message = 'File uploaded'
+        return render(request, 'aged/agedstockupload.html', {'message': message})
+
+
+# --------------- users/superusers check available stock
 @login_required
 def userseallstock(request):
-    # push materials to template to use with custom tags in HTML and JS for filtering
-    allMaterials = MaterialType.objects.all()
-    materialCsv = str()
+    # push all materials to template to use with custom tags in HTML and JS for filtering
+    # each material that is available in active, is pushed to the table
+    all_materials = MaterialType.objects.all()
+    material_csv = str()
     # create a CSV like list of materials to feed to a hidden tag and use it in js
-    for number, mat in enumerate(allMaterials):
+
+    for number, mat in enumerate(all_materials):
         if number+1 < 11:
-            materialCsv +=f'{mat.material_type},'
+            # this has a trailing comma
+            material_csv +=f'{mat.material_type},'
         else:
-            materialCsv +=f'{mat.material_type}'
+            # this does NOT have a trailing comma
+            material_csv +=f'{mat.material_type}'
 
-    # retreive all stock that was offered or sold
+    # retrieve all stock that was offered or sold
     # do not show expired stock
-    touchedStock = OffersLog.objects.filter(stock_expired=False)
-    # retreive all available stock
-    freeStockAll = AvailableStock.objects.all().order_by('expiration_date')
-    return render(request, 'aged/userseallstock.html', {'freeStockAll' : freeStockAll, 'touchedStock' : touchedStock, 'materiale' : allMaterials, 'materialCsv' : materialCsv})
+    touched_stock = OffersLog.objects.filter(stock_expired=False)
+    # retrieve all available stock
+    free_stock_all = AvailableStock.objects.all().order_by('expiration_date')
+    return render(request, 'aged/userseallstock.html',
+                  {'freeStockAll': free_stock_all,
+                   'touchedStock': touched_stock,
+                   'materiale': all_materials,
+                   'materialCsv': material_csv})
 
 
-# pagina in care userul face oferta, care e trecuta in baza de date
+# --------------- user/superuser makes offer
 @login_required
 def usersmakeoffer(request, itm_id):
     stock_item = AvailableStock.objects.filter(id = itm_id).get()
@@ -243,6 +318,7 @@ def notenoughstock(request, stockId):
     return render(request, 'aged/notenoghstockavailable.html', {'stock_item': stock_item})
 
 
+
 @login_required
 def userpendingoffers(request):
     # hide all touched stock older than 60 days (2 months), but show offers in the future (if someone decides to make the offer available from tomorrow)
@@ -252,190 +328,6 @@ def userpendingoffers(request):
     return render(request, 'aged/userpendingoffers.html', {'pending': pending})
 
 
-# this it is only available to me (main file to upload spreadsheets)
-@user_passes_test(lambda u: u.get_username() == 'Mikimic')
-def fileupload(request):
-    return render(request, 'aged/fileupload.html')
-
-
-# this it is only available to me (file to upload salespeople, customer care people and company names .xlsx file)
-@login_required
-@user_passes_test(lambda u: u.get_username() == 'Mikimic')
-def salespeopleupload(request):
-    """
-    Parses the xlsx and notifies if User accounts have to be created or deleted
-    Creates, deletes customer care accounts
-    Creates/retires customer accounts
-    """
-    if request.method == 'GET':
-        return render(request, 'aged/salespeopleupload.html')
-    elif request.method == 'POST':
-        # upload xlsx file with accounts and sales people
-        file_name = 'people.xlsx'
-        file_1 = request.FILES['file_1']
-        file_object = FileSystemStorage()
-        file_object.save(file_name, file_1)
-        file_name_with_path = f'media/{file_name}'
-
-        # check xlsx has only one tab
-        if not only_one_tab_check(file_name_with_path):
-            file_object.delete(file_name)
-            upload_status = 'The file has more than one tab. Fix file and re-upload'
-            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
-
-        # check spreadsheet not blank
-        if not check_spreadsheet_contains_data(file_name_with_path):
-            file_object.delete(file_name)
-            upload_status = 'The file has no data. Fix file and re-upload'
-            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
-
-        # check that the spreadsheet contains the expected headers
-        dataframe = return_data_frame_without_empty_rows_and_cols(file_name_with_path)
-        expected_headers = ['Customer Name', 'Customer Number', 'Sales Rep', 'Customer Care Agent']
-        if not check_headers(expected_headers, dataframe):
-            file_object.delete(file_name)
-            upload_status = f'The file has the wrong headers. The expected headers are: {" ".join(expected_headers)}. Fix file and re-upload'
-            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
-
-        # delete the xlsx file from database
-        file_object.delete(file_name)
-
-        # check that all users are in the database and that deleting or creating some is not required
-        if not check_salespeople_in_database(dataframe):
-            acc_to_create_or_delete = check_salespeople_in_database(dataframe)
-            message_create = ''
-            accounts_to_create = list()
-            message_delete = ''
-            accounts_to_delete = list()
-
-            if len(acc_to_create_or_delete[0]) > 0:
-                message_create = textwrap.dedent('''Customers are linked to sales people,
-                                                   so salespeople accounts need to be created first.
-                                                   The following accounts need to be created:''')
-                accounts_to_create = acc_to_create_or_delete[0]
-            else:
-                message_create = textwrap.dedent('''No sales people account to create''')
-
-            if len(acc_to_create_or_delete[1]) > 0:
-                message_delete = textwrap.dedent('''There are a few sales people accounts to create:''')
-
-            # do_not_use_in_production_automatic_accounts_creation(dataframe)
-
-            return render(request, 'aged/salespeopleupload.html', {'message_create': message_create,
-                                                                   'message_delete': message_delete,
-                                                                   'accounts_to_create': accounts_to_create,
-                                                                   'accounts_to_delete': accounts_to_delete,
-                                                                   })
-        else:
-            create_customer_care_accounts(dataframe)
-            create_customer_accounts(dataframe)
-            message = 'All accounts updated'
-            return render(request, 'aged/salespeopleupload.html', {'message': message})
-
-
-@login_required
-@user_passes_test(lambda u: u.get_username()=='Mikimic')
-def agedstockupload(request):
-    """
-    Performs checks on the xlsx file containing stock data
-    Checks file only has one tab
-    Checks file contains data
-    Checks file has the right headers
-    Checks file was not uploaded already
-    Uploads brands in the database
-    Uploads material types in the database (Chocolate, nuts, etc)
-
-    """
-    if request.method == 'GET':
-        return render(request, 'aged/agedstockupload.html')
-    elif request.method == 'POST':
-        # upload file, read content, delete file - return content as dict
-        file_name = 'stock.xlsx'
-        file_2 = request.FILES['file_2']
-        file_object = FileSystemStorage()
-        file_object.save(file_name, file_2)
-
-        # check if file has only one tab
-        if not only_one_tab_check(f'media/{file_name}'):
-            message = 'The file has more than one tab. Fix file and re-upload'
-            file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
-
-        # check if file contains data
-        if not check_spreadsheet_contains_data(f'media/{file_name}'):
-            message = 'The file does not contain any data.'
-            file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
-
-        # return the dataframe
-        dataframe = return_data_frame_without_empty_rows_and_cols(f'media/{file_name}')
-        # check headers
-        requested_headers = ['Plnt', 'Stor loc', 'Material', 'Brand', 'Matl Group', 'Batch,Quantity', 'Unrestricted',
-                             'Expiration date', 'Description']
-        if not check_headers(requested_headers, dataframe):
-            message = f'The file requires the following headers: {requested_headers}'
-            file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
-
-        # check if file was already uploaded
-        if not check_if_file_was_already_uploaded(f'media/{file_name}'):
-            message = 'This file was already uploaded'
-            file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
-
-        # add new brands into the database
-        put_brand_into_db(dataframe)
-        # add new material types into the database
-        put_material_type_into_db(dataframe)
-        # add new locations into the database
-        put_stock_location_in_database(dataframe)
-        # add products to the database
-        put_products_in_the_database(dataframe)
-        # populate the available stock table
-        put_available_stock_in_the_database(dataframe)
-
-        # last line
-        file_object.delete(file_name)
-        message = 'File uploaded'
-        return render(request, 'aged/agedstockupload.html', {'message': message})
-
-
-        #     # curata lista
-        #     azi = datetime.date.today()
-        #     data_exp_stoc_bd = AvailableStock.objects.values()
-        #     identification_values_of_stock = list()
-        #     # (la "if" mai jos) (redundant - am un task care curata zilnic prod expirate) verifica ce stocuri sunt expirate din stocurile existente in baza de date, si sterge-le. However functioneaza doar a doua oara cand urc produse in baza de date, pt ca verifica in database, nu in ce urc pt ca nu e de asteptat sa fie urcate stocuri expirate in baza de date
-        #     # (la "elif" mai jos) sterge toate stocurile neatinse (not under offer, nor sold)- verifica daca cantitatea initala == cantitatea actuala
-        #     # (la "else") - la else sunt stocurile neexpirate si "atinse" (under offer sau sold) pe care le pastrez, dar acum trebuie sa le sterg din lista
-        #     # generata din exel (adica daca cumva acelasi produs re-apare in excelul nou)
-        #     for stock0 in data_exp_stoc_bd:
-        #         if azi >= stock0['expiration_date']:
-        #             expiredStockId = stock0['id']
-        #             AvailableStock.objects.get(id = stock0['id']).delete()
-        #         elif stock0['original_quantity_in_kg'] == stock0['available_quantity_in_kg']:
-        #             AvailableStock.objects.get(id = stock0['id']).delete()
-        #         else:
-        #             idOfField = [f'{Products.objects.get(id = stock0["available_product_id"])}', stock0["expiration_date"], stock0["batch"]]
-        #             for dictSet in aged_stock_as_lista_de_dict:
-        #                 if idOfField[0] in list(dictSet.values()):
-        #                     if idOfField[1] in list(dictSet.values()):
-        #                         if idOfField[2] in list(dictSet.values()):
-        #                             aged_stock_as_lista_de_dict.pop(aged_stock_as_lista_de_dict.index(dictSet))
-        #
-        #     # urca toate in baza de date Available stock
-        #     for stock in aged_stock_as_lista_de_dict:
-        #         new_stock = AvailableStock (
-        #                     available_product = Products.objects.filter(cod_material = stock['Material']).get(),
-        #                     stock_location = LocationsForStocks.objects.filter(location_of_stocks = stock['Stor loc']).get(),
-        #                     expiration_date = stock['Expiration date'],
-        #                     batch = stock['Batch'],
-        #                     original_quantity_in_kg = stock['Quantity'],
-        #                     available_quantity_in_kg = stock['Quantity']
-        #                     )
-        #         new_stock.save()
-        #         message = 'uploaded succesfully'
-        #
-        # return render(request, 'aged/agedstockupload.html', {'message':message})
 
 
 @login_required
@@ -522,6 +414,83 @@ def changeoffer(request, offer_id, mess):
         else:
             return redirect('changeoffer', offer_id=myOfferToChange.id, mess='t')
 
+# Opens the page where superusers can see the reports of who sold what, what is under offer, declined, etc
+@user_passes_test(lambda u: u.is_superuser)
+def superuserreports(request):
+    # if you chose a certain value in one of the filters (such as a certain salesperson)
+    # you will be served a page where the value will be prefilled (ie. if you filter by Sarah the filter will stay on Sarah )
+    # that is what the dict does
+    preselectValues = dict()
+    preselectValues['salesperson'] = 'All'
+    preselectValues['state'] = 'All'
+    preselectValues['start'] = ''
+    preselectValues['end'] = ''
+    # data standard e cu 60 de zile in urma + 30 de zile in viitor pt cei care au pregatit oferte pt saptamana viitoare
+    aziPlus30 = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
+    firstDateOfOffersSpan = str(datetime.datetime.today().date() - datetime.timedelta(days=60))
+    obj = OffersLog.objects.filter(date_of_offer__range=[firstDateOfOffersSpan, aziPlus30]).all()
+
+    # creez doua seturi ca sa elimin duplicatele de nume (ie daca Sarah are mai multe oferte, numele ei sa apara o data)
+    # al doilea set e statusul posibil al ofertelor bazat pe populatia din baza de date (ie, daca nu exista nimeni cu sold, sold nu apare printre optiuni)
+    allUsersWithOffers = set()
+    allOfferStatus = set()
+    # populez seturile
+    for ob in obj:
+        allUsersWithOffers.add(ob.sales_rep_that_made_the_offer.username)
+        allOfferStatus.add(ob.offer_status)
+
+    # seturile nu sunt ordonate si nu contin varianta 'All', asa ca le fac lista, sortez si adaug 'All'
+    allUsersWithOffers = list(allUsersWithOffers)
+    allUsersWithOffers.sort()
+    allUsersWithOffers.insert(0, 'All')
+
+    allOfferStatus = list(allOfferStatus)
+    allOfferStatus.sort()
+    allOfferStatus.insert(0, 'All')
+
+    if request.method == 'POST':
+        stateOfOffers = request.POST.get('offerStatus')
+        preselectValues['state'] = stateOfOffers
+
+        nameOfUser = request.POST.get('nameOfUser')
+        preselectValues['salesperson'] = nameOfUser
+
+        start = request.POST.get('startDate')
+        end = request.POST.get('endDate')
+
+        # no start or end
+        if start == '' and end =='':
+            # ultimele doua luni doar
+            start = firstDateOfOffersSpan
+            end = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
+        # start, no end
+        elif start != '' and end == '':
+            end = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
+        # end no start
+        elif start == '' and end != '':
+            start = firstDateOfOffersSpan
+        # start and end
+        elif start != '' and end != '':
+            pass
+
+        preselectValues['start'] = start
+        preselectValues['end'] = end
+
+        if nameOfUser != 'All':
+            idOfUser = User.objects.filter(username=nameOfUser).get().id
+            obj = OffersLog.objects.filter(date_of_offer__range=[start, end], sales_rep_that_made_the_offer=idOfUser).all()
+            if stateOfOffers != 'All':
+                obj = OffersLog.objects.filter(date_of_offer__range=[start, end], sales_rep_that_made_the_offer=idOfUser, offer_status=stateOfOffers).all()
+
+        # search for a particular user
+        elif nameOfUser == 'All':
+            obj = OffersLog.objects.filter(date_of_offer__range=[start, end]).all()
+            if stateOfOffers != 'All':
+                obj = OffersLog.objects.filter(date_of_offer__range=[start, end], offer_status=stateOfOffers).all()
+
+
+
+    return render(request, 'aged/superuserreports.html', {'objects':obj, 'allUsersWithOffers':allUsersWithOffers, 'allOfferStatus':allOfferStatus, 'preselectValues':preselectValues})
 
 @login_required
 def help(request):

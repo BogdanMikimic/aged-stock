@@ -172,4 +172,6 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
         xlsx_upload_field.send_keys(wrong_absolute_file_path)
         self.browser.find_element(By.ID, 'id_submit_file').click()
-        self.fail('finish the test')
+
+
+        self.fail('finish the test ')

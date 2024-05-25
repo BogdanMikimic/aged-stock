@@ -156,8 +156,8 @@ def put_available_stock_in_the_database(dataframe: object) -> None:
                 new_stock.stock_location = LocationsForStocks.objects.filter(location_of_stocks=row['Stor loc']).get()
                 new_stock.expiration_date = row['Expiration date'].date()
                 new_stock.batch = row['Batch']
-                new_stock.original_quantity_in_kg = str(row['Quantity'])
-                new_stock.available_quantity_in_kg = str(row['Quantity'])
+                new_stock.original_quantity_in_kg = int(float(row['Quantity']))
+                new_stock.available_quantity_in_kg = int(float(row['Quantity']))
                 new_stock.save()
 
 

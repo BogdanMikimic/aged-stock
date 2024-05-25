@@ -1,3 +1,5 @@
+// in the table on the available stock page, each available stock is presented on a row
+// this gets all the rows in the table
 const offeredTrLst = document.querySelectorAll('.tr_offered')
 const soldTrLst = document.querySelectorAll('.tr_sold')
 const checkBoxUnderOffer = document.querySelector('#underOfferCB')
@@ -14,10 +16,13 @@ const allTr = document.querySelectorAll('tr')
 class HideStuff {
   constructor(name, allTrElements) {
     this.name = name;
+    // these are all rows with available stock in the table
     this.alltr = allTrElements;
     this.getCheckbox = document.querySelector(('#' + this.name));
     this.getCheckbox.addEventListener('click', this.showMe.bind(this));
   }
+
+
   showMe() {
     if (this.getCheckbox.checked == 1) {
       for (const attr of this.alltr) {
@@ -47,6 +52,7 @@ class HideStuff {
 }
 }
 
+// this creates a checkbox for each material (chocolate, nuts) in the active
 for (const mat of arrayOfMaterials) {
   cbObjArray.push(new HideStuff(mat, allTr))
 }
