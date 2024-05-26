@@ -1,12 +1,13 @@
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase # this a  class provided by Django for tests
 from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
+from aged.models import AvailableStock, Products, LocationsForStocks, CheckIfFileWasAlreadyUploaded, Brands
+from aged.lab.Aged_stock import date_to_string_or_string_to_date
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from django.contrib.auth.models import User
 from selenium.webdriver.common.keys import Keys
-import time
 import os
+import pandas as pd
 
 # Morgan - a salesperson in the UK department heard about this cool app that was designed by a colleague
 # to help the sales people better manage their aged stock
@@ -162,16 +163,55 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         self.assertTrue(self.browser.find_element(By.ID, 'span_message').text.startswith(
             'The file requires the following headers:'))
 
-
-        # he goes back
+        # he goes back, and uploads the good file
         self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
         self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
         # he tries again, this time uploading a file with the wrong headers
         xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        wrong_relative_path = 'aged/lab/DataSafeOnes/05_good_AgedStock_only_two_brands.xlsx'
-        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
-        xlsx_upload_field.send_keys(wrong_absolute_file_path)
+        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
         self.browser.find_element(By.ID, 'id_submit_file').click()
+        # he is met by a message that says the file was uploaded successfully
+        self.assertEqual(self.browser.find_element(By.ID, 'span_message').text, 'File uploaded')
+
+        # he checks his xlsx file for a few random products and checks that there are in the database
+        self.assertTrue(AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='MIS-002-871').get(),
+            stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
+            expiration_date=date_to_string_or_string_to_date('2025-01-23'),
+            batch=86697483,
+            # he is mindful that the app converts floats to integers
+            original_quantity_in_kg=131,
+            under_offer_quantity_in_kg=0,
+            sold_quantity_in_kg=0,
+            available_quantity_in_kg=131
+        ).exists())
+
+        self.assertTrue(AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='CHO-154-472').get(),
+            stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
+            expiration_date=date_to_string_or_string_to_date('2024-09-04'),
+            batch=9189809447,
+            # he is mindful that the app converts floats to integers
+            original_quantity_in_kg=500,
+            under_offer_quantity_in_kg=0,
+            sold_quantity_in_kg=0,
+            available_quantity_in_kg=500
+        ).exists())
+
+        # he also checks that the database captures the fact that the file was already
+        # uploaded by recording the creation date of the file
+        date_file_was_created_db_list = CheckIfFileWasAlreadyUploaded.objects.values_list('data_creare_fisier',
+                                                                                          flat=True)
+        file = pd.ExcelFile(right_absolute_file_path, engine='openpyxl')
+        workbook = file.book
+        creation_date = str(workbook.properties.created)
+        self.assertTrue(creation_date in date_file_was_created_db_list)
+
+        # and also checks that some brands were uploaded in the database
+        self.assertTrue(Brands.objects.filter(brand='Chocogreat').exists())
+        self.assertTrue(Brands.objects.filter(brand='ChocoElite').exists())
 
 
-        self.fail('finish the test ')
+        # self.fail('finish the test ')

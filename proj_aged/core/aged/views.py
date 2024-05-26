@@ -188,6 +188,7 @@ def agedstockupload(request):
 # --------------- users/superusers check available stock
 @login_required
 def userseallstock(request):
+    # shows all available stock page
     # retrieve all stock that was offered or sold
     # do not show expired stock
     touched_stock = OffersLog.objects.filter(stock_expired=False)
@@ -204,7 +205,6 @@ def userseallstock(request):
         material.add(itm.available_product.product_material_type.material_type)
         materiale.add(itm.available_product.product_material_type)
     material_csv = ",".join(material)
-    print(f'material set: {material}, material csv: {material_csv}')
     return render(request, 'aged/userseallstock.html',
                   {'freeStockAll': free_stock_all,
                    'touchedStock': touched_stock,

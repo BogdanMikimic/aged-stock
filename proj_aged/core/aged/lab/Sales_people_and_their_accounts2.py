@@ -53,10 +53,6 @@ def check_headers(expected_headers: list[str], dataframe: object) -> bool:
     # retrieve the actual headers from the DataFrame
     actual_headers = dataframe.columns.tolist()
     # check if the expected headers match the actual headers
-    for itm in expected_headers:
-        if itm not in actual_headers:
-            print(itm)
-    print(actual_headers)
     if expected_headers == actual_headers:
         return True
     else:
