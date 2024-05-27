@@ -198,7 +198,7 @@ class CheckAgedStockUploads(TestCase):
         # test that CHOCOLATE is in the database
         self.assertTrue('CHOCOLATE' in materials_in_database)
         # test that NUTS is in the database
-        self.assertTrue('NUTS' in materials_in_database)
+        self.assertTrue('NUTS' in materials_in_database, 'dot was not removed from NUTS.')
         # test that COMPOUNDS is in the database
         self.assertTrue('COMPOUNDS' in materials_in_database)
 

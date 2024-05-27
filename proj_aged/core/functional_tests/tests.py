@@ -9,10 +9,8 @@ from aged.models import AvailableStock,\
     CustomerService
 
 from aged.lab.Aged_stock import date_to_string_or_string_to_date
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from django.contrib.auth.models import User
-from selenium.webdriver.common.keys import Keys
 import os
 import pandas as pd
 import time
@@ -245,5 +243,72 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         self.assertTrue(Brands.objects.filter(brand='Chocogreat').exists())
         self.assertTrue(Brands.objects.filter(brand='ChocoElite').exists())
 
+    def test_superuser_checks_the_all_stock_page(self):
+        # populate database
+        self.browser.get(self.live_server_url)
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Mikimic')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('adminpassword')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        right_relative_path = 'aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        self.browser.get(self.live_server_url)
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # he goes to the page where all stock is displayed (userallstock), opened from 'Sell some stuff 🡢'
+        self.browser.get(self.live_server_url)
+        self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
+        # the page tile is " Available stock "
+        self.assertEqual(self.browser.title, 'Available stock')
+        # he notices that there is a search functionality too, so he checks that out, by imputing CHO-168-194
+        # he knows he only has one of these SKUs in the database
+        search_bar = self.browser.find_element(By.ID, 'searchBar')
+        search_bar.send_keys('CHO-168-194')
+        self.browser.find_element(By.ID, 'searchButton').click()
+        table_rows = self.browser.find_elements(By.TAG_NAME, 'tr')
+        time.sleep(5)
+        for row in table_rows:
+            if row.value_of_css_property('display') == 'table-row':
+                if not row.get_attribute('class') == "tr_first_line":
+                    self.assertEqual(row.find_element(By.CLASS_NAME, 'table_sku').text, 'CHO-168-194')
+        # there is a paragraph inviting him to click on it to open the filters
+        clickable_paragraph = self.browser.find_element(By.ID, 'p_filter_message')
+        clickable_paragraph.click()
+        # he observes that the first element in the table starts with MIS, that suggest that the type of material is
+        # miscellaneous - abbreviated MISCEL, so he clicks the checkbox to hide it
+        self.browser.find_element(By.ID, 'MISCEL').click()
+        # he checks that all the MISC elements are no longer in list
+        misc_elements_list = self.browser.find_elements(By.XPATH, '//tr[@data-material="MISCEL"]')
+        for itm in misc_elements_list:
+            self.assertEqual(itm.value_of_css_property('visibility'), 'collapse')
+        # he hides the fillings to
+        self.browser.find_element(By.ID, 'FILLING').click()
+        # he checks that all the MISC elements are no longer in list
+        misc_elements_list = self.browser.find_elements(By.XPATH, '//tr[@data-material="FILLING"]')
+        for itm in misc_elements_list:
+            self.assertEqual(itm.value_of_css_property('visibility'), 'collapse')
 
-        # self.fail('finish the test ')
+        # he clicks the MISC checkbox again and checks that the MISCEL are back on the list
+        self.browser.find_element(By.ID, 'MISCEL').click()
+        # he checks that all the MISC elements are back in the list
+        misc_elements_list = self.browser.find_elements(By.XPATH, '//tr[@data-material="MISCEL"]')
+        for itm in misc_elements_list:
+            self.assertEqual(itm.value_of_css_property('visibility'), 'visible')
+
+
+
+        #TODO: check button make offer functioning
+        # after an offer has been made, check that is under offer and can be filtered
+        # after a product has been sold, check that it can be filtered out
+

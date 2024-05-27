@@ -59,9 +59,11 @@ def put_material_type_into_db(dataframe: object) -> None:
             clean_material_name = xlsx_material_type
         else:
             clean_material_name = ''.join([char for char in xlsx_material_type if char.isalpha()])
+
+
         # update/create material in the database
         MaterialType.objects.update_or_create(
-            material_type=xlsx_material_type
+            material_type=clean_material_name
         )
 
 
@@ -129,7 +131,12 @@ def put_products_in_the_database(dataframe: object) -> None:
         # extract data from xlsx rows
         row = dataframe.iloc[i]
         product_brand = Brands.objects.filter(brand=row['Brand']).get()
-        product_material_type = MaterialType.objects.filter(material_type=row['Matl Group']).get()
+        dirty_material_name = row['Matl Group']
+        if all(char.isalpha() for char in dirty_material_name):
+            clean_material_name = dirty_material_name
+        else:
+            clean_material_name = ''.join([char for char in dirty_material_name if char.isalpha()])
+        product_material_type = MaterialType.objects.filter(material_type=clean_material_name).get()
         Products.objects.update_or_create(
             cod_material=row['Material'],
             defaults={
