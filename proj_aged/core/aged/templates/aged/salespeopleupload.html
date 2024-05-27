@@ -24,7 +24,7 @@
     {% for user in accountsToDelete %}
     <p style="color:red"> {{ user }} </p>
     {% endfor %}
-    <pre>{{ message }}</pre>
+    <pre id="id_message">{{ message }}</pre>
     <br>
     <a class="a_menu" href="{% url 'fileupload' %}">Go back</a>
   {% endif %}

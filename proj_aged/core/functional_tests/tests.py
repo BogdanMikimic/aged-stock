@@ -1,6 +1,13 @@
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase # this a  class provided by Django for tests
 from selenium import webdriver
-from aged.models import AvailableStock, Products, LocationsForStocks, CheckIfFileWasAlreadyUploaded, Brands
+from aged.models import AvailableStock,\
+    Products,\
+    LocationsForStocks,\
+    CheckIfFileWasAlreadyUploaded,\
+    Brands, \
+    Customers, \
+    CustomerService
+
 from aged.lab.Aged_stock import date_to_string_or_string_to_date
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -8,6 +15,7 @@ from django.contrib.auth.models import User
 from selenium.webdriver.common.keys import Keys
 import os
 import pandas as pd
+import time
 
 # Morgan - a salesperson in the UK department heard about this cool app that was designed by a colleague
 # to help the sales people better manage their aged stock
@@ -49,11 +57,11 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # Admin creates a superuser for himself (needs to be Mikimic)
         self.superuser = User.objects.create_superuser(
             username='Mikimic',
+            first_name='Miki',
+            last_name='Mic',
             password='adminpassword',
             email='admin@example.com'
         )
-
-
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
         self.browser.quit()  # quits firefox
@@ -106,11 +114,35 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
         xlsx_upload_field.send_keys(wrong_absolute_file_path)
         self.browser.find_element(By.ID, 'id_submit_file').click()
+
         # and this time the error message is different - telling him about the wrong headers
         self.assertTrue(self.browser.find_element(By.ID, 'upload_status').text.startswith("The file has the wrong headers."))
+        # he goes back and this time uploads a good file (containing just one salesperson - Mikimic)
+        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        # this time he uploads an older file that does not contain the right headers
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        right_relative_path = 'aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
 
-        # TODO: test create_customer_care_accounts function
-        # TODO: finish create_customer_accounts function
+        # he checks that the file was uploaded successfully
+        self.assertEqual(self.browser.find_element(By.ID, 'id_message').text, 'All accounts updated')
+
+        # he also looks in the database and checks for a few customers
+        self.assertTrue(Customers.objects.filter(
+            customer_name='Quantum Foods Engineering Ltd.',
+            customer_number=5421,
+            allocated_customer_service_rep=CustomerService.objects.filter(customer_service_rep='Reese Brown').get()
+            ).exists(), )
+        self.assertTrue(Customers.objects.filter(
+            customer_name='Dark Chocolate Dreams',
+            customer_number=1296,
+            allocated_customer_service_rep=CustomerService.objects.filter(
+                customer_service_rep='Jamie Garcia').get(),
+            ).exists())
+
 
     # the admin goes to upload the aged stock file
     def test_log_in_and_stock_file_upload_for_admin(self):
