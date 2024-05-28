@@ -7,7 +7,8 @@ from aged.models import AvailableStock,\
     CheckIfFileWasAlreadyUploaded,\
     Brands, \
     Customers, \
-    CustomerService
+    CustomerService, \
+    OffersLog
 
 from aged.lab.Aged_stock import date_to_string_or_string_to_date
 from selenium.webdriver.common.by import By
@@ -400,6 +401,31 @@ class UserOffers(StaticLiveServerTestCase):
         select_element = self.browser.find_element(By.NAME, "customer")
         select = Select(select_element)
         select.select_by_visible_text("Creamy Cocoa Bites")
+        # and makes the offer for 100 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('100')
+        # set the discount to 1
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('1')
+        # set the price to 1
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'  # Adjust the format if needed based on your date field requirements
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # click the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                'postOne')
+        make_offer_button.click()
+
+        # she checks that the offer was submitted to the database
+        self.assertEqual(OffersLog.objects.count(), 1)
+
 
 
 
