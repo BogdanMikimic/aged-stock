@@ -1,5 +1,6 @@
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase # this a  class provided by Django for tests
 from selenium import webdriver
+from selenium.webdriver.support.ui import Select
 from aged.models import AvailableStock,\
     Products,\
     LocationsForStocks,\
@@ -307,8 +308,98 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
             self.assertEqual(itm.value_of_css_property('visibility'), 'visible')
 
 
-
         #TODO: check button make offer functioning
         # after an offer has been made, check that is under offer and can be filtered
         # after a product has been sold, check that it can be filtered out
+
+class UserOffers(StaticLiveServerTestCase):
+    def setUp(self) -> None:
+        self.browser = webdriver.Firefox()  # starts firefox
+        self.browser.implicitly_wait(5)
+
+
+        # Admin has an account
+        self.superuser = User.objects.create_superuser(
+            username='Mikimic',
+            first_name='Miki',
+            last_name='Mic',
+            password='adminpassword',
+            email='admin@example.com'
+        )
+
+        # He creates one account for Morgan who is a salesperson
+        self.regular_user = User.objects.create_user(
+            username='Morgan',
+            first_name='Morgan',
+            last_name='Davis',
+            password='password123',
+            email='morgan@example.com'
+        )
+        # And one account for Quinn who is an administration
+        self.superuser = User.objects.create_superuser(
+            username='Quinn',
+            first_name='Quinn',
+            last_name='Miller',
+            password='password123',
+            email='quinn@example.com'
+        )
+
+        # he uploads the xlsx in the database
+        self.browser.get(self.live_server_url)
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Mikimic')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('adminpassword')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        right_relative_path = 'aged/lab/DataSafeOnes/17_just_two_sales_people.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        self.browser.get(self.live_server_url)
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+
+    def tearDown(self) -> None:  # This code runs once AFTER EACH test
+        self.browser.quit()  # quits firefox
+
+    def test_a_user_makes_offer(self):
+        # Morgan logs in her account
+        self.browser.get(self.live_server_url + '/accounts/login/')
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Morgan')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('password123')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        # and she is greeted by 2 buttons
+        self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'a_menu')), 2)
+        # she clicks on the button taking her to the available products pages
+        self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
+        # she sees a product - MIS-019-865, and she wants to offer it to a client, so she clicks the "Make offer" button
+        self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-019-865']]//a[@class='a_menu_make_offer']").click()
+        # she lands on a page announcing her that she is about to make an offer for the MIS-019-865 product
+        self.assertEqual(self.browser.find_element(By.CLASS_NAME, 'table_customer').text, 'MIS-019-865')
+        # she notices all her customers are in the drop-down, so she checks a few
+        customers = self.browser.find_elements(By.CLASS_NAME, 'input_offer')
+        customers_list = [customer.text for customer in customers]
+        self.assertTrue('Reliable Ventures Real Estate Ltd.' in customers_list)
+        self.assertTrue('Advanced Analytics Agriculture Ltd.' in customers_list)
+        self.assertTrue('Zesty Grains' in customers_list)
+        # she also looks for some of her colleagues customers to make sure they are NOT in there
+        self.assertFalse('Decadent Cocoa Fantasies' in customers_list)
+        self.assertFalse('Rapid Foods Development Ltd.' in customers_list)
+        self.assertFalse('Urban Utilities Healthcare Ltd.' in customers_list)
+        # she selects one of her customers
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text("Creamy Cocoa Bites")
+
+
 

@@ -215,7 +215,7 @@ def userseallstock(request):
 # --------------- user/superuser makes offer
 @login_required
 def usersmakeoffer(request, itm_id):
-    stock_item = AvailableStock.objects.filter(id = itm_id).get()
+    stock_item = AvailableStock.objects.filter(id=itm_id).get()
     customers = Customers.objects.filter(salesperson_owning_account=request.user.id).order_by('customer_name')
     theSpecificStock = AvailableStock.objects.filter(id = itm_id).get()
 
@@ -229,31 +229,29 @@ def usersmakeoffer(request, itm_id):
 
             dataOfertaStr = request.POST.get('date_of_offer')
             dateOfOffer = datetime.datetime.fromisoformat(dataOfertaStr).date()
-            #expiration date este offer date + 7 zile
+            #expiration date is offer date + 7 days
             expireDateOfOffer = dateOfOffer + datetime.timedelta(days=7)
 
             log_entry = OffersLog(
-                        sales_rep_that_made_the_offer = User.objects.filter(username=request.user.get_username()).get(),
-                        offered_stock = theSpecificStock,
-                        offered_product = theSpecificStock.available_product,
-                        customer_that_received_offer = Customers.objects.filter(id=int(request.POST.get('customer'))).get(),
-                        offered_sold_or_declined_quantity_kg = request.POST.get('quantity'),
-                        offer_status = 'Offered',
-                        discount_offered_percents = request.POST.get('discount_in_percent'),
-                        price_per_kg_offered = request.POST.get('price'),
-                        date_of_offer = dateOfOffer,
-                        #expiration date este offer date + 7 zile
-                        expiration_date_of_offer = expireDateOfOffer
+                        sales_rep_that_made_the_offer=User.objects.filter(username=request.user.get_username()).get(),
+                        offered_stock=theSpecificStock,
+                        offered_product=theSpecificStock.available_product,
+                        customer_that_received_offer=Customers.objects.filter(id=int(request.POST.get('customer'))).get(),
+                        offered_sold_or_declined_quantity_kg=request.POST.get('quantity'),
+                        offer_status='Offered',
+                        discount_offered_percents=request.POST.get('discount_in_percent'),
+                        price_per_kg_offered=request.POST.get('price'),
+                        date_of_offer=dateOfOffer,
+                        expiration_date_of_offer=expireDateOfOffer
                         )
 
             log_entry.save()
             # BUG - copiaza under offer peste ce e scris deja ca si cantitate
-            logOfferId = OffersLog.objects.latest('id').id
             stock_item.under_offer_quantity_in_kg += int(request.POST.get('quantity'))
             stock_item.available_quantity_in_kg -= int(request.POST.get('quantity'))
             stock_item.save()
 
-            return redirect('userawesomeoffer', offerId = logOfferId)
+            return redirect('userawesomeoffer', offerId=log_entry.id)
 
         #if the quantity is no longer available because someone else took it
         else:
@@ -559,133 +557,5 @@ def task1(request):
         if len(oferteMaiVechiDe365Zile)>0: # daca exista oferte mai vechi
             for oferta in oferteMaiVechiDe365Zile:
                 oferta.delete()
-
-        # TASK 4 - trimite-mi zilnic un mail pe adresa mea cu un csv cu datele
-        # builds 2 csvs - one with all time offers log, one with current stock with offers
-
-        # build all time stock CSV
-        logCsvTxt = 'Transaction ID|Sales rep|Offered stock(ID),Offered SKU|Customer|Offered sold or declined kg|Offer status|Discount %,Price/kg|Total Price|Offer Date|Offer expiration date|Date of outcome|Stock expired?\n'
-        logDb = OffersLog.objects.all()
-        countTransactions = len(logDb)
-        for record in logDb:
-            totalPrice = round((record.offered_sold_or_declined_quantity_kg * record.price_per_kg_offered), 2)
-            if record.offered_stock == None: #stocul oferit nu mai exista
-                offeredStock = 'Stock no longer exists'
-            else:
-                offeredStock = record.id # id of stock that was offered
-            logCsvTxt += f'{record.id}|{record.sales_rep_that_made_the_offer.username}|{offeredStock}|{record.offered_product.cod_material}|{record.customer_that_received_offer.customer_name}|{record.offered_sold_or_declined_quantity_kg}|{record.offer_status}|{record.discount_offered_percents}|{record.price_per_kg_offered}|{totalPrice}|{record.date_of_offer}|{record.expiration_date_of_offer}|{record.date_of_outcome}|{record.stock_expired}\n'
-        # write CSV
-        csv1Name = f'Log({len(logDb)}transactions)-{azi}.csv'
-        with open(f'media/{csv1Name}', 'wt') as logCSV:
-            logCSV.write(logCsvTxt)
-
-        # build current available stocks and offers csv
-
-        # logic: goes trough all stocks, but if a stock has quantities under offer or sold
-        # goes and checks on the log who has done transactions on that particular stock and
-        # writes the same stock in multiple lines, one line for each salesperson that has
-        # an active offer on the stock and one for each person that sold parts of the stock
-
-        # step 1 - build CSV heading -made it multiple lines for readability
-        stockCSVtxt = 'Stock ID|'
-        stockCSVtxt += 'SKU|'
-        stockCSVtxt += 'Description|'
-        stockCSVtxt += 'Brand|'
-        stockCSVtxt += 'Material type|'
-        stockCSVtxt += 'Location|'
-        stockCSVtxt += 'Expiration date|'
-        stockCSVtxt += 'Batch|'
-        stockCSVtxt += 'Original qty (kg)|'
-        stockCSVtxt += 'Total under offer qty(kg)|'
-        stockCSVtxt += 'Total sold qty(kg)|'
-        stockCSVtxt += 'Available qty (kg)|'
-        # this is the second part of the csv
-        stockCSVtxt += 'Stock touched?|'
-        stockCSVtxt += 'Person that has an active offer|'
-        stockCSVtxt += 'Offered quantity (kg)|'
-        stockCSVtxt += 'Person that sold some stock|'
-        stockCSVtxt += 'Sold quantity (kg)|'
-        stockCSVtxt += '\n'
-
-        # step 2 - function that writes the first part of the CSV (all the data up to persons that made the offer)
-        def writeFirstPartOfCSVLine(st):
-            # requires the stock object as argument
-            firstPartOfLine = ''
-            firstPartOfLine += f'{st.id}|'
-            firstPartOfLine += f'{st.available_product.cod_material}|'
-            firstPartOfLine += f'{st.available_product.description}|'
-            firstPartOfLine += f'{st.available_product.product_brand}|'
-            firstPartOfLine += f'{st.available_product.product_material_type}|'
-            firstPartOfLine += f'{st.stock_location}|'
-            firstPartOfLine += f'{st.expiration_date}|'
-            firstPartOfLine += f'{st.batch}|'
-            firstPartOfLine += f'{st.original_quantity_in_kg}|'
-            firstPartOfLine += f'{st.under_offer_quantity_in_kg}|'
-            firstPartOfLine += f'{st.sold_quantity_in_kg}|'
-            firstPartOfLine += f'{st.available_quantity_in_kg}|'
-            return firstPartOfLine
-
-        def writesSecondPartOfCSVLine(st):
-            # checks if there are parts of the stock under offer or sold,
-            # and for each part offered or sold is constructing a csv line with the identification
-            # of the user that has the offer/sold and the offered/sold qty
-            secondPartOfLine = ''
-            # check if parts of the stock was offered or sold
-            if st.under_offer_quantity_in_kg >0 or st.sold_quantity_in_kg >0:
-                # retreives all people that made offers or sold that stock
-                stockUnderOffer = OffersLog.objects.filter(offered_stock = st.id).all()
-                for touchStock in stockUnderOffer:
-                    if touchStock.offer_status == 'Offered': # check for offer
-                        secondPartOfLine += writeFirstPartOfCSVLine(st)
-                        secondPartOfLine += 'Yes|'
-                        secondPartOfLine += f'{touchStock.sales_rep_that_made_the_offer.username}|'
-                        secondPartOfLine += f'{touchStock.offered_sold_or_declined_quantity_kg}|'
-                        secondPartOfLine += 'None|'
-                        secondPartOfLine += 'None|'
-                        secondPartOfLine += '\n'
-
-                    elif touchStock.offer_status == 'Sold':
-                        secondPartOfLine += writeFirstPartOfCSVLine(st)
-                        secondPartOfLine += 'Yes|'
-                        secondPartOfLine += 'None|'
-                        secondPartOfLine += 'None|'
-                        secondPartOfLine += f'{touchStock.sales_rep_that_made_the_offer.username}|'
-                        secondPartOfLine += f'{touchStock.offered_sold_or_declined_quantity_kg}|'
-                        secondPartOfLine += '\n'
-
-            else:
-                secondPartOfLine += writeFirstPartOfCSVLine(st)
-                secondPartOfLine += 'No|'
-                secondPartOfLine += 'None|'
-                secondPartOfLine += 'None|'
-                secondPartOfLine += 'None|'
-                secondPartOfLine += 'None|'
-                secondPartOfLine += '\n'
-            return secondPartOfLine
-
-        # retreive all stock from the database and call the functions that build the csv
-        stockDb = AvailableStock.objects.all()
-        for st in stockDb: #
-            info =  writesSecondPartOfCSVLine(st)
-            stockCSVtxt += info
-
-        # write second csv
-        csv2Name = f'ProductStockToDate-{azi}.csv'
-        with open(f'media/{csv2Name}', 'wt') as stockCSV:
-            stockCSV.write(stockCSVtxt)
-
-        # attach CSV with log to email
-        # attach CSV with stock to email
-        # send email
-        MailSender(recipient='bogdan_chira',
-                   titlu=f'Aged Stock Reports {azi}',
-                   continut=f'Aged Stock Reports{azi}',
-                   numeAtasament1=csv1Name,
-                   numeAtasament2=csv2Name)
-
-        # delete csv files from server
-        handlerFisereDrive = FileSystemStorage()
-        handlerFisereDrive.delete(f'{csv1Name}')
-        handlerFisereDrive.delete(f'{csv2Name}')
 
     return render(request, 'aged/teste.html')
