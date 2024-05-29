@@ -14,6 +14,7 @@ from aged.lab.Aged_stock import date_to_string_or_string_to_date
 from selenium.webdriver.common.by import By
 from django.contrib.auth.models import User
 import os
+import datetime
 import pandas as pd
 import time
 
@@ -307,11 +308,11 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         misc_elements_list = self.browser.find_elements(By.XPATH, '//tr[@data-material="MISCEL"]')
         for itm in misc_elements_list:
             self.assertEqual(itm.value_of_css_property('visibility'), 'visible')
-
-
-        #TODO: check button make offer functioning
-        # after an offer has been made, check that is under offer and can be filtered
-        # after a product has been sold, check that it can be filtered out
+# #
+# #
+# #         #TODO: check button make offer functioning
+# #         # after an offer has been made, check that is under offer and can be filtered
+# #         # after a product has been sold, check that it can be filtered out
 
 class UserOffers(StaticLiveServerTestCase):
     def setUp(self) -> None:
@@ -415,7 +416,7 @@ class UserOffers(StaticLiveServerTestCase):
         price_field.send_keys('1')
         # set the date to today
         date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'  # Adjust the format if needed based on your date field requirements
+        today_date = '2024-05-28'
         date_field.clear()
         date_field.send_keys(today_date)
         # click the button to make the offer
@@ -425,6 +426,20 @@ class UserOffers(StaticLiveServerTestCase):
 
         # she checks that the offer was submitted to the database
         self.assertEqual(OffersLog.objects.count(), 1)
+        stock = OffersLog.objects.all()[0]
+        self.assertEqual(stock.sales_rep_that_made_the_offer, User.objects.filter(first_name='Morgan', last_name='Davis').get())
+        self.assertEqual(stock.offered_stock, AvailableStock.objects.filter(available_product=Products.objects.filter(cod_material='MIS-019-865').get()).get())
+        self.assertEqual(stock.offered_product, Products.objects.filter(cod_material='MIS-019-865').get())
+        self.assertEqual(stock.customer_that_received_offer, Customers.objects.filter(customer_name='Creamy Cocoa Bites').get())
+        self.assertEqual(stock.offered_sold_or_declined_quantity_kg, 100)
+        self.assertEqual(stock.offer_status, 'Offered')
+        self.assertEqual(stock.discount_offered_percents, 1.00)
+        self.assertEqual(stock.price_per_kg_offered, 1.00)
+        self.assertEqual(stock.date_of_offer, datetime.date(2024, 5, 28))
+        self.assertEqual(stock.expiration_date_of_offer, datetime.date(2024, 6, 4))
+        self.assertEqual(stock.date_of_outcome, None)
+        self.assertEqual(stock.stock_expired, False)
+
 
 
 
