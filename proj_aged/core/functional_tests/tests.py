@@ -17,6 +17,7 @@ import os
 import datetime
 import pandas as pd
 import time
+import PyPDF2
 
 # Morgan - a salesperson in the UK department heard about this cool app that was designed by a colleague
 # to help the sales people better manage their aged stock
@@ -316,8 +317,26 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
 
 class UserOffers(StaticLiveServerTestCase):
     def setUp(self) -> None:
-        self.browser = webdriver.Firefox()  # starts firefox
-        self.browser.implicitly_wait(5)
+        # Define the directory where files will be downloaded
+        self.download_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
+
+        # Create the directory if it doesn't exist
+        if not os.path.exists(self.download_dir):
+            os.makedirs(self.download_dir)
+
+        # Set Firefox profile preferences for download
+        option = webdriver.FirefoxOptions()
+        option.set_preference("browser.download.folderList", 2)  # Use custom download location
+        option.set_preference("browser.download.dir", self.download_dir)
+        option.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/pdf")  # MIME type for PDF
+        option.set_preference("pdfjs.disabled", True)  # Disable Firefox's built-in PDF viewer
+
+        # Initialize the Firefox WebDriver with the specified profile
+        self.browser = webdriver.Firefox(options=option)
+        self.browser.implicitly_wait(10)
+
+
+
 
 
         # Admin has an account
@@ -424,6 +443,9 @@ class UserOffers(StaticLiveServerTestCase):
                                                 'postOne')
         make_offer_button.click()
 
+
+
+        ## delete file
         # she checks that the offer was submitted to the database
         self.assertEqual(OffersLog.objects.count(), 1)
         stock = OffersLog.objects.all()[0]
@@ -439,6 +461,35 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(stock.expiration_date_of_offer, datetime.date(2024, 6, 4))
         self.assertEqual(stock.date_of_outcome, None)
         self.assertEqual(stock.stock_expired, False)
+
+        # she wants a pdf copy of the offer, so she requests one
+        self.browser.find_element(By.ID, 'getPdf').click()
+        existing_file_name = os.listdir(self.download_dir)[0]
+        expected_file_name = 'MIS-019-865-FOR-Creamy Cocoa Bites.pdf'
+        # she checks the name of the file to be the right one
+        self.assertTrue(existing_file_name, expected_file_name)
+        # she checks the content of the file
+        reader = PyPDF2.PdfReader(f'{self.download_dir}/{existing_file_name}')
+        page = reader.pages[0]
+        text = page.extract_text()
+        # she checks that the date of the offer is the right one
+        self.assertIn(f'Date of offer: {stock.date_of_offer.strftime("%d-%m-%Y")}', text)
+        # she checks that the expiration date is the right one
+        self.assertIn(f'Offer expiration date: {stock.expiration_date_of_offer.strftime("%d-%m-%Y")}', text)
+        # she checks that the offer is addressed to the right customer
+        self.assertIn(f'To: {stock.customer_that_received_offer.customer_name}', text)
+        # she checks offered price is the correct one
+        self.assertIn(f'Price/kg: £{stock.price_per_kg_offered}', text)
+        # she checks offered quantity is the correct one
+        self.assertIn(f' to offer you {stock.offered_sold_or_declined_quantity_kg}kg', text)
+        # she checks that the offered product is the correct one
+        self.assertIn('MIS-019-865', text)
+        # finally she checks that customer care agent is the correct one
+        self.assertIn(f'Customer care agent: {Customers.objects.filter(customer_name="Creamy Cocoa Bites").get().allocated_customer_service_rep.customer_service_rep}', text)
+        ## delete file
+        os.remove(os.path.abspath(f'{self.download_dir}/{existing_file_name}'))
+
+
 
 
 
