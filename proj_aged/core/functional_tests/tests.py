@@ -311,9 +311,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
             self.assertEqual(itm.value_of_css_property('visibility'), 'visible')
 # #
 # #
-# #         #TODO: check button make offer functioning
-# #         # after an offer has been made, check that is under offer and can be filtered
-# #         # after a product has been sold, check that it can be filtered out
+# #         #TODO: after a product has been sold, check that it can be filtered out
 
 class UserOffers(StaticLiveServerTestCase):
     def setUp(self) -> None:
@@ -486,8 +484,33 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertIn('MIS-019-865', text)
         # finally she checks that customer care agent is the correct one
         self.assertIn(f'Customer care agent: {Customers.objects.filter(customer_name="Creamy Cocoa Bites").get().allocated_customer_service_rep.customer_service_rep}', text)
+
         ## delete file
         os.remove(os.path.abspath(f'{self.download_dir}/{existing_file_name}'))
+
+        # happy with the result she goes back to the aged stock products to check that the offered 100 kg were deducted
+        # from the available quantity and the available vas reduced to 62 kg
+        self.browser.find_element(By.LINK_TEXT, 'Let me try another one').click()
+        self.assertTrue(self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-019-865']]//td[text()='62 kg']"))
+
+        # she opens the filters area
+        self.browser.find_element(By.ID, 'p_filter_message').click()
+        # she un ticks the "under offer" tick-box
+        self.browser.find_element(By.ID, 'underOfferCB').click()
+        # now she can see the offer that she made appearing as a separate line
+        ## I am removing the zeros from day and month so 04 becomes 4
+        exp_date = f'{stock.expiration_date_of_offer.strftime("%B")} {stock.expiration_date_of_offer.day}, {stock.expiration_date_of_offer.year}'
+        expiration_column = f" Under offer by {stock.sales_rep_that_made_the_offer} expires: {exp_date} "
+        ## this creates a query that looks for the table row that condais 3 <td> elements. each with the correct text data
+        #  and ;  and td[text()='Under offer by Morgan expires: June 4, 2024']
+        xpath = (
+            f"//tr[@class='tr_offered' and td[text()='MIS-019-865'] and td[text()='100 kg'] and td[text()='{expiration_column}']]"
+        )
+        self.assertTrue(self.browser.find_element(By.XPATH, xpath))
+
+
+
+
 
 
 
