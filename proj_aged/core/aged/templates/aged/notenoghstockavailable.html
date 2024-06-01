@@ -7,11 +7,11 @@
   <p class="p_menu">Hi {{user}}, </p>
   <p class="p_menu" style="color:red">Seems like someone beat you to it, and there isn't enough stock left.</p>
   {% if stock_item.available_quantity_in_kg != 0 %}
-  <p class="p_menu" style="color:red">There are only <span style="color:orange"> {{ stock_item.available_quantity_in_kg }}kg</span> left. Do you want to re-do your offer with this quantity?</p>
+  <p class="p_menu" style="color:red">There are only <span id="id_available_qty" style="color:orange"> {{ stock_item.available_quantity_in_kg }}kg</span> left. Do you want to re-do your offer with this quantity?</p>
   <br>
   <a class="a_menu" href="{% url 'usersmakeoffer' itm_id=stock_item.id %}">Remake offer</a>
   {% else %}
-  <p class="p_menu" style="color:red">There are 0kg left</p>
+  <p id="id_zero_stock_left" class="p_menu" style="color:red">There are 0kg left</p>
   <br>
   {% endif %}
   <a class="a_menu" href="{% url 'userseallstock' %}">Back to available stock</a>

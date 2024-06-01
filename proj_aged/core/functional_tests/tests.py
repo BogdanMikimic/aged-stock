@@ -441,9 +441,6 @@ class UserOffers(StaticLiveServerTestCase):
                                                 'postOne')
         make_offer_button.click()
 
-
-
-        ## delete file
         # she checks that the offer was submitted to the database
         self.assertEqual(OffersLog.objects.count(), 1)
         stock = OffersLog.objects.all()[0]
@@ -507,6 +504,58 @@ class UserOffers(StaticLiveServerTestCase):
             f"//tr[@class='tr_offered' and td[text()='MIS-019-865'] and td[text()='100 kg'] and td[text()='{expiration_column}']]"
         )
         self.assertTrue(self.browser.find_element(By.XPATH, xpath))
+
+        # she sees another stock, COM-008-310, 300kg available, and she wants to offer 200kg of it to another customer
+        # she clicks on the button to make the offer
+        self.browser.find_element(By.XPATH, "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']").click()
+        # and she is redirected to the page with the offer form
+        # she selects one of her customers
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
+        # and makes the offer for 200 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('200')
+        # set the discount to 2
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('2')
+        # set the price to 1
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # however, before she gets to place the order, her colleague offers 200 out of the 300 kg to one of his customers
+        ## we will simulate this by directly decreasing the available stock by 200kg from the available quantity, without an offer
+        my_stock = AvailableStock.objects.filter(available_product=Products.objects.filter(cod_material='COM-008-310').get()).get()
+        my_stock.available_quantity_in_kg -= 200
+        my_stock.save()
+
+        #she clicks the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # she notices she is redirected to a page with the title "Not enough stock"
+        self.assertEqual(self.browser.title, 'Not enough stock')
+        # she is meet by an announcement that there is not enough stock available because someone already
+        # offered some of it to someone else
+        self.assertEqual(self.browser.find_elements(By.CLASS_NAME, 'p_menu')[1].text,
+                         "Seems like someone beat you to it, and there isn't enough stock left.")
+        # she is told that the remaining quantity is 100kg
+        self.assertEqual(self.browser.find_element(By.ID, 'id_available_qty').text,
+                         "100kg")
+
+        # she is presented with a few options
+        #TODO: check buttons (number wise)
+        #TODO: test it with zero and check buttons
+
+
 
 
 
