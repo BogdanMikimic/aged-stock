@@ -410,6 +410,16 @@ class UserOffers(StaticLiveServerTestCase):
         - check that the sold quantity is deducted and the remaining qty displays correctly in the all stocks page
         - check that the sold quantity registers correctly in the all stocks page
         - check that filtering by sold works correctly in the all stocks page
+        - checks that the offer can be changed
+        - checks that the changed offer is registered correctly in the offersLog model in the database
+        - check that the changed quantity is correctly recorder in AvailableStock model in the database
+        - check that the changed quantity is adjusted and the remaining qty displays correctly in the all stocks page
+        - checks that the offer can be marked as declined
+        - checks that the filter out "declined" check box works in the offers log
+        - checks that the offer is registered correctly as declined in the offersLog model in the database
+        - check that the declined quantity is correctly adjusted in AvailableStock model in the database
+        - check that the declined quantity is restored and the remaining qty displays correctly in the all stocks page
+        - check that the declined quantity registers correctly in the all stocks page
 
         """
 
@@ -821,14 +831,42 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(available_stock.available_quantity_in_kg, 150)
 
         # the customer declines the offer, so she marks it as declined
+        # she clicks the button to change the offer
+        xpath = "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']"
+        self.browser.find_element(By.XPATH, xpath).click()
+        # she checks she is on the right page
+        self.assertEqual(self.browser.title, 'Change offer status')
+        self.browser.find_element(By.NAME, 'declined').click()
 
         # she checks that the declined offer appears as declined in the offers log page
+        xpath = "//tr[td[text()='COM-008-310'] and td[text()='150'] and td[text()='Declined']]"
+        self.assertTrue(self.browser.find_element(By.XPATH, xpath))
 
         # she checks that the filter for hiding declined offers functions correctly
+        self.browser.find_element(By.ID, 'p_filter_message').click()
+        self.browser.find_element(By.ID, 'Declined').click()
+        for element in self.browser.find_elements(By.CLASS_NAME, 'Declined'):
+            self.assertIn(element.get_attribute('style'), 'visibility: collapse;')
+
+        # she checks that the quantity is restored to the original quantity on the all available stocks page
+        self.browser.find_element(By.LINK_TEXT, 'Back to available stock').click()
+        xpath = "//tr[td[text()='COM-008-310'] and td[text()='300 kg']]"
+        self.assertTrue(self.browser.find_element(By.XPATH, xpath))
 
         # she checks that the offer is correctly marked in the offers log database
+        stock = OffersLog.objects.filter(offered_stock=AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='COM-008-310').get()).get(),
+            customer_that_received_offer=Customers.objects.filter(customer_name="Advanced Orchards Finance Ltd.").get()).get()
+        self.assertEqual(stock.offered_sold_or_declined_quantity_kg, 150)
+        self.assertEqual(stock.offer_status, 'Declined')
 
         # she checks that the offer is correctly marked in the Available stock database
+        available_stock = AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='COM-008-310').get()).get()
+        self.assertEqual(available_stock.original_quantity_in_kg, 300)
+        self.assertEqual(available_stock.under_offer_quantity_in_kg, 0)
+        self.assertEqual(available_stock.sold_quantity_in_kg, 0)
+        self.assertEqual(available_stock.available_quantity_in_kg, 300)
 
         # a manager logs in
         # he notices he has a reports button
