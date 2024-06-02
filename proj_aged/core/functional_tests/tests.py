@@ -806,8 +806,19 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(first_offer_data_td[8].text, 'Offered')
 
         # she checks that the offer is registered correctly on the OffersLog database
+        stock = OffersLog.objects.filter(offered_stock=AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='COM-008-310').get()).get(),
+            customer_that_received_offer=Customers.objects.filter(customer_name="Advanced Orchards Finance Ltd.").get()).get()
+        self.assertEqual(stock.offered_sold_or_declined_quantity_kg, 150)
+        self.assertEqual(stock.offer_status, 'Offered')
 
         # she checks that the quantities are correctly displayed in the available stock
+        available_stock = AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='COM-008-310').get()).get()
+        self.assertEqual(available_stock.original_quantity_in_kg, 300)
+        self.assertEqual(available_stock.under_offer_quantity_in_kg, 150)
+        self.assertEqual(available_stock.sold_quantity_in_kg, 0)
+        self.assertEqual(available_stock.available_quantity_in_kg, 150)
 
         # the customer declines the offer, so she marks it as declined
 
