@@ -248,6 +248,9 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         self.assertTrue(Brands.objects.filter(brand='ChocoElite').exists())
 
     def test_superuser_checks_the_all_stock_page(self):
+        """
+        This tests the available stocks page filtering and searching functionality
+        """
         # populate database
         self.browser.get(self.live_server_url)
         username_input = self.browser.find_element(By.ID, 'id_username')
@@ -309,8 +312,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         misc_elements_list = self.browser.find_elements(By.XPATH, '//tr[@data-material="MISCEL"]')
         for itm in misc_elements_list:
             self.assertEqual(itm.value_of_css_property('visibility'), 'visible')
-# #
-# #
+
 # #         #TODO: after a product has been sold, check that it can be filtered out
 
 class UserOffers(StaticLiveServerTestCase):
@@ -332,10 +334,6 @@ class UserOffers(StaticLiveServerTestCase):
         # Initialize the Firefox WebDriver with the specified profile
         self.browser = webdriver.Firefox(options=option)
         self.browser.implicitly_wait(10)
-
-
-
-
 
         # Admin has an account
         self.superuser = User.objects.create_superuser(
@@ -363,7 +361,7 @@ class UserOffers(StaticLiveServerTestCase):
             email='quinn@example.com'
         )
 
-        # he uploads the xlsx in the database
+        # he uploads the xlsx files in the database
         self.browser.get(self.live_server_url)
         username_input = self.browser.find_element(By.ID, 'id_username')
         username_input.send_keys('Mikimic')
@@ -390,6 +388,22 @@ class UserOffers(StaticLiveServerTestCase):
         self.browser.quit()  # quits firefox
 
     def test_a_user_makes_offer(self):
+        """
+        This tests:
+        - user (salesperson) logs in
+        - clicking on the make offer button takes you to a form for that particular product
+        - user can only see its own customers in the drop-down
+        - quantity is capped to available quantity
+        - making an offer redirects to the completion page
+        - making an offer registers correctly in the database
+        - downloading and checking the offer as a pdf
+        - checks that the offered quantity can be revealed by activating the "under offer" filter on all stock page
+        - checks that the offered quantity is deducted from the available quantity on the all stock page
+        - making another offer, but in the meantime somebody else completes their leaving you with a lower qty
+        - making another offer, but in the meantime somebody else completes their leaving you with a zero qty
+        - (restores the quantities and allows user to make initial second offer)
+        """
+
         # Morgan logs in her account
         self.browser.get(self.live_server_url + '/accounts/login/')
         username_input = self.browser.find_element(By.ID, 'id_username')
@@ -397,12 +411,16 @@ class UserOffers(StaticLiveServerTestCase):
         password_input = self.browser.find_element(By.ID, 'id_password')
         password_input.send_keys('password123')
         self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+
         # and she is greeted by 2 buttons
         self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'a_menu')), 2)
+
         # she clicks on the button taking her to the available products pages
         self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
+
         # she sees a product - MIS-019-865, and she wants to offer it to a client, so she clicks the "Make offer" button
         self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-019-865']]//a[@class='a_menu_make_offer']").click()
+
         # she lands on a page announcing her that she is about to make an offer for the MIS-019-865 product
         self.assertEqual(self.browser.find_element(By.CLASS_NAME, 'table_customer').text, 'MIS-019-865')
         # she notices all her customers are in the drop-down, so she checks a few
@@ -457,6 +475,8 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(stock.date_of_outcome, None)
         self.assertEqual(stock.stock_expired, False)
 
+        # she is redirected to a page with the title "Great job!"
+        self.assertEqual(self.browser.title, "Great job!")
         # she wants a pdf copy of the offer, so she requests one
         self.browser.find_element(By.ID, 'getPdf').click()
         existing_file_name = os.listdir(self.download_dir)[0]
@@ -498,7 +518,8 @@ class UserOffers(StaticLiveServerTestCase):
         ## I am removing the zeros from day and month so 04 becomes 4
         exp_date = f'{stock.expiration_date_of_offer.strftime("%B")} {stock.expiration_date_of_offer.day}, {stock.expiration_date_of_offer.year}'
         expiration_column = f" Under offer by {stock.sales_rep_that_made_the_offer} expires: {exp_date} "
-        ## this creates a query that looks for the table row that condais 3 <td> elements. each with the correct text data
+        ## this creates a query that looks for the table row that condais 3 <td> elements.
+        ## each with the correct text data
         #  and ;  and td[text()='Under offer by Morgan expires: June 4, 2024']
         xpath = (
             f"//tr[@class='tr_offered' and td[text()='MIS-019-865'] and td[text()='100 kg'] and td[text()='{expiration_column}']]"
@@ -553,7 +574,6 @@ class UserOffers(StaticLiveServerTestCase):
         # she is told that the remaining quantity is 100kg
         self.assertEqual(self.browser.find_element(By.ID, 'id_available_qty').text,
                          "100kg")
-
         # she is presented with three buttons
         self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'a_menu')), 3)
         # and she decides to remake the offer, so she clicks on the "Remake offer" button
@@ -566,7 +586,91 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertIn('100kg available', self.browser.find_elements(By.CLASS_NAME, 'label_input')[1].text)
         self.assertEqual(self.browser.find_element(By.NAME, 'quantity').get_attribute('max'), '100')
 
-        #TODO: test it with zero and check buttons
+        # she makes the offer for the remaining 100kg quantity
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
+        # and makes the offer for 100 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('100')
+        # set the discount to 2
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('2')
+        # set the price to 1
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # however, before she gets to place the order, her colleague offers the remaining 100 kg
+        ## we will simulate this by directly decreasing the available stock to zero, without an offer
+        my_stock = AvailableStock.objects.filter(available_product=Products.objects.filter(
+            cod_material='COM-008-310').get()).get()
+        my_stock.available_quantity_in_kg = 0
+        my_stock.save()
+
+        #she clicks the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # she notices she is redirected to a page with the title "Not enough stock"
+        self.assertEqual(self.browser.title, 'Not enough stock')
+        # she is meet by an announcement that there is not enough stock available because someone already
+        # offered all of it to someone else
+        self.assertEqual(self.browser.find_elements(By.CLASS_NAME, 'p_menu')[1].text,
+                         "Seems like someone beat you to it, and there isn't enough stock left.")
+        # she is told that the remaining quantity is 0kg
+        self.assertEqual(self.browser.find_element(By.ID, 'id_zero_stock_left').text,
+                         "There are 0kg left")
+
+        # this time she is presented with only 2 buttons instead of 3 - she no longer has the option to offer the stock
+        self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'a_menu')), 2)
+
+        ## for good measure let's restore the quantity to it's original value
+        my_stock = AvailableStock.objects.filter(available_product=Products.objects.filter(
+            cod_material='COM-008-310').get()).get()
+        my_stock.available_quantity_in_kg = 300
+        my_stock.save()
+        ## and let Morgan go through with the original offer of 200 kg
+        self.browser.find_elements(By.CLASS_NAME, 'a_menu')[0].click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
+        # and makes the offer for 200 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('200')
+        # set the discount to 2
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('2')
+        # set the price to 1
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # she clicks the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # she is redirected to a page with the title "Great job!"
+        self.assertEqual(self.browser.title, "Great job!")
+
+
+
+
 
 
 
