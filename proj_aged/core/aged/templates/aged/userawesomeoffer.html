@@ -6,7 +6,7 @@
 {% block customJs %} <script type="text/javascript" src="{% static 'aged/js/waitSpinner.js' %}" defer></script> {% endblock %}
 {% block body %}
 <div style="display:flex; flex-direction:column; text-align:center; align-items:center; padding:1%">
-  <p style="width:50%; margin:0.3%;">{{user}}, you are awesome! </p>
+  <p id="id_awesome_offer" style="width:50%; margin:0.3%;">{{user}}, you are awesome! </p>
   <img src="{% static 'aged/img/Way-to-go-Congratulations-Meme.jpg'%}" alt="">
   <br>
   <p class="p_notification">Download your offer as a PDF now. This is the only page you get the chance to download it, if you navigate away, you won't be able to do it anymore.</p>

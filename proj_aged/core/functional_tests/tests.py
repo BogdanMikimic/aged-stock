@@ -668,6 +668,66 @@ class UserOffers(StaticLiveServerTestCase):
         # she is redirected to a page with the title "Great job!"
         self.assertEqual(self.browser.title, "Great job!")
 
+        # she navigates home
+        self.browser.find_element(By.LINK_TEXT, 'I know! (home)').click()
+        # and then she navigates to the pending offers page
+        self.browser.find_element(By.LINK_TEXT, 'See "My offers" log 🡢').click()
+        # she opens the filters section
+        self.browser.find_element(By.ID, 'p_filter_message').click()
+        # she clicks on the "hide Offered" tick box, and she checks that the line of the sold is now hidden
+        self.browser.find_element(By.ID, 'Offered').click()
+        # and she checks the offers are no longer there
+        for element in self.browser.find_elements(By.CLASS_NAME, 'Offered'):
+            self.assertIn(element.get_attribute('style'), 'visibility: collapse;')
+        # she unticks the offered checkbox
+        self.browser.find_element(By.ID, 'Offered').click()
+        # she checks that the 2 offers she made are there
+        offers = self.browser.find_elements(By.CLASS_NAME, 'Offered')
+        self.assertEqual(len(offers), 2)
+        # she checks that the first offer is for the MIS-019-865 material
+        first_offer_data_td = offers[0].find_elements(By.TAG_NAME, 'td')
+        self.assertEqual(first_offer_data_td[0].text, 'MIS-019-865')
+        # she checks that the customer is Creamy Cocoa Bites
+        self.assertEqual(first_offer_data_td[1].text, 'Creamy Cocoa Bites')
+        # she checks that offer was made for 100kg
+        self.assertEqual(first_offer_data_td[2].text, '100')
+        # she checks that the discount applied is 1.00%
+        self.assertEqual(first_offer_data_td[3].text, '1.00')
+        # she checks that the price per kilo is 1.00
+        self.assertEqual(first_offer_data_td[4].text, '1.00')
+        # she checks that the date of the offer is correct May 28, 2024
+        self.assertEqual(first_offer_data_td[5].text, 'May 28, 2024')
+        # and she checks that the expiration date si correct June 4, 2024
+        self.assertEqual(first_offer_data_td[6].text, 'June 4, 2024')
+        # she checks that the date of the outcome is None
+        self.assertEqual(first_offer_data_td[7].text, 'None')
+        # she also checks that the offer is rightfully labeled as offered
+        self.assertEqual(first_offer_data_td[8].text, 'Offered')
+
+        # she receives news that the customer accepts the offer, so she wishes to change the offer to "sold"
+        # she clicks on the "change offer" button
+        first_offer_data_td[9].find_element(By.TAG_NAME, 'a').click()
+        # and lands on a page with the title "Change offer status"
+        self.assertEqual(self.browser.title, 'Change offer status')
+        # on the page she sees four buttons
+        self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'button')), 4)
+        # and she clicks on the one that changes the offer to sold
+        self.browser.find_element(By.NAME, 'sold').click()
+        # and she is returned to the page with her reports, and now the MIS-019-865 offer is changed to sold
+        sold_tag_details = self.browser.find_element(By.CLASS_NAME, 'Sold').find_elements(By.TAG_NAME, 'td')
+        self.assertEqual(sold_tag_details[0].text, 'MIS-019-865')
+        self.assertEqual(sold_tag_details[7].text, 'June 2, 2024')
+        self.assertEqual(sold_tag_details[8].text, 'Sold')
+        # she opens the filters section
+        self.browser.find_element(By.ID, 'p_filter_message').click()
+        # she clicks on the "hide sold" tick box, and she checks that the line of the sold is now hidden
+        self.browser.find_element(By.ID, 'Sold').click()
+        for element in self.browser.find_elements(By.CLASS_NAME, 'Sold'):
+            self.assertIn(element.get_attribute('style'), 'visibility: collapse;')
+
+
+
+
 
 
 
