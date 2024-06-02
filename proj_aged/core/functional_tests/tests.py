@@ -313,7 +313,6 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         for itm in misc_elements_list:
             self.assertEqual(itm.value_of_css_property('visibility'), 'visible')
 
-# #         #TODO: after a product has been sold, check that it can be filtered out
 
 class UserOffers(StaticLiveServerTestCase):
     def setUp(self) -> None:
@@ -403,12 +402,14 @@ class UserOffers(StaticLiveServerTestCase):
         - making another offer, but in the meantime somebody else completes their leaving you with a zero qty
         - (restores the quantities and allows user to make initial second offer)
         - checks that the offers register in offers log
-        - checks that the filter out "offered" check box works
+        - checks that the filter out "offered" check box works in the offers log
         - checks that the offer can be marked sold
-        - checks that the filter out "sold" check box works
+        - checks that the filter out "sold" check box works in the offers log
         - checks that the offer is registered correctly as sold in the offersLog model in the database
         - check that the sold quantity is correctly deduced from AvailableStock model in the database
-
+        - check that the sold quantity is deducted and the remaining qty displays correctly in the all stocks page
+        - check that the sold quantity registers correctly in the all stocks page
+        - check that filtering by sold works correctly in the all stocks page
 
         """
 
@@ -749,6 +750,45 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(available_stock.under_offer_quantity_in_kg, 0)
         self.assertEqual(available_stock.sold_quantity_in_kg, 100)
         self.assertEqual(available_stock.available_quantity_in_kg, 62)
+
+        # she navigates to the main "all stock" page, and she checks that the remaining quantity of 62 kfg is
+        # displayed correctly
+        self.browser.find_element(By.LINK_TEXT, 'Back to available stock').click()
+        xpath = "//tr[td[text()='MIS-019-865'] and td[text()='62 kg']]"
+        self.assertTrue(self.browser.find_element(By.XPATH, xpath))
+        # she checks that the "sold" filter works on "all stock" page
+        self.browser.find_element(By.ID, 'p_filter_message').click()
+        # she checks that the correct quantity is registered as sold
+        xpath = "//tr[td[text()='MIS-019-865'] and td[text()='100 kg'] and td[text()=' Sold by Morgan ']]"
+        self.assertTrue(self.browser.find_element(By.XPATH, xpath))
+
+        # she is contacted by the customer for the other offer and the customer ask her to re-do the offer for 150kg
+        # and asks for a lower price
+        # she goes back to the offers screen, and she changes the existing offer to 150 kg 2.5% discount and a price per
+        # kg of 1,5
+
+        # she checks that the new offer registered correctly on the offers log page
+
+        # she checks that the offer is registered correctly on the OffersLog database
+
+        # she checks that the quantities are correctly displayed in the available stock
+
+        # the customer declines the offer, so she marks it as declined
+
+        # she checks that the declined offer appears as declined in the offers log page
+
+        # she checks that the filter for hiding declined offers functions correctly
+
+        # she checks that the offer is correctly marked in the offers log database
+
+        # she checks that the offer is correctly marked in the Available stock database
+
+        # a manager logs in
+        # he notices he has a reports button
+        # he checks the offers page to see Morgan's activity
+        # he checks some filters
+
+
 
 
 
