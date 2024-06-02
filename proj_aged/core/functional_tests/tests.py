@@ -697,7 +697,7 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(first_offer_data_td[4].text, '1.00')
         # she checks that the date of the offer is correct May 28, 2024
         self.assertEqual(first_offer_data_td[5].text, 'May 28, 2024')
-        # and she checks that the expiration date si correct June 4, 2024
+        # and she checks that the expiration date is correct June 4, 2024
         self.assertEqual(first_offer_data_td[6].text, 'June 4, 2024')
         # she checks that the date of the outcome is None
         self.assertEqual(first_offer_data_td[7].text, 'None')
@@ -716,7 +716,8 @@ class UserOffers(StaticLiveServerTestCase):
         # and she is returned to the page with her reports, and now the MIS-019-865 offer is changed to sold
         sold_tag_details = self.browser.find_element(By.CLASS_NAME, 'Sold').find_elements(By.TAG_NAME, 'td')
         self.assertEqual(sold_tag_details[0].text, 'MIS-019-865')
-        self.assertEqual(sold_tag_details[7].text, 'June 2, 2024')
+        today_date_right_string_format = f'{datetime.datetime.today().date().strftime("%B")} {datetime.datetime.today().date().day}, {datetime.datetime.today().date().year}'
+        self.assertEqual(sold_tag_details[7].text, today_date_right_string_format)
         self.assertEqual(sold_tag_details[8].text, 'Sold')
         # she opens the filters section
         self.browser.find_element(By.ID, 'p_filter_message').click()
@@ -724,6 +725,20 @@ class UserOffers(StaticLiveServerTestCase):
         self.browser.find_element(By.ID, 'Sold').click()
         for element in self.browser.find_elements(By.CLASS_NAME, 'Sold'):
             self.assertIn(element.get_attribute('style'), 'visibility: collapse;')
+
+        # she checks the database to see that the offered quantity instance is marked as sold
+        stock = OffersLog.objects.filter(offered_stock=AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='MIS-019-865').get()).get(),
+            customer_that_received_offer=Customers.objects.filter(customer_name="Creamy Cocoa Bites").get()).get()
+        self.assertEqual(stock.offered_sold_or_declined_quantity_kg, 100)
+        self.assertEqual(stock.offer_status, 'Sold')
+        self.assertEqual(stock.discount_offered_percents, 1.00)
+        self.assertEqual(stock.price_per_kg_offered, 1.00)
+        self.assertEqual(stock.date_of_offer, datetime.date(2024, 5, 28))
+        self.assertEqual(stock.date_of_outcome, datetime.datetime.today().date())
+        self.assertEqual(stock.stock_expired, False)
+
+
 
 
 
