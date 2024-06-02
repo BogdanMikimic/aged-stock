@@ -246,14 +246,13 @@ def usersmakeoffer(request, itm_id):
                         )
 
             log_entry.save()
-            # BUG - copiaza under offer peste ce e scris deja ca si cantitate
             stock_item.under_offer_quantity_in_kg += int(request.POST.get('quantity'))
             stock_item.available_quantity_in_kg -= int(request.POST.get('quantity'))
             stock_item.save()
 
             return redirect('userawesomeoffer', offerId=log_entry.id)
 
-        #if the quantity is no longer available because someone else took it
+        # if the quantity is no longer available because someone else took it
         else:
             return redirect('notenoughstock', stockId=stock_item.id)
 

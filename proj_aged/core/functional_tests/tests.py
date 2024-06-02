@@ -515,6 +515,9 @@ class UserOffers(StaticLiveServerTestCase):
         select.select_by_visible_text('Advanced Orchards Finance Ltd.')
         # and makes the offer for 200 kg
         quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        # she sees that the form automatically caps her at the maximum available quantity, 300kg
+        self.assertIn('300kg available', self.browser.find_elements(By.CLASS_NAME, 'label_input')[1].text)
+        self.assertEqual(self.browser.find_element(By.NAME, 'quantity').get_attribute('max'), '300')
         quantity_field.clear()
         quantity_field.send_keys('200')
         # set the discount to 2
@@ -551,8 +554,18 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(self.browser.find_element(By.ID, 'id_available_qty').text,
                          "100kg")
 
-        # she is presented with a few options
-        #TODO: check buttons (number wise)
+        # she is presented with three buttons
+        self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'a_menu')), 3)
+        # and she decides to remake the offer, so she clicks on the "Remake offer" button
+        self.browser.find_element(By.LINK_TEXT, 'Remake offer').click()
+        # she is met with the form that registers the offer, for the same product
+        self.assertEqual(self.browser.find_elements(By.CLASS_NAME, 'p_menu')[1].text,
+                         'You are about to make an offer for: COM-008-310')
+        self.assertEqual(self.browser.find_element(By.CLASS_NAME, 'table_customer').text, 'COM-008-310')
+        # she also sees that the available quantity is 100kg, and the system limits it to 100kg
+        self.assertIn('100kg available', self.browser.find_elements(By.CLASS_NAME, 'label_input')[1].text)
+        self.assertEqual(self.browser.find_element(By.NAME, 'quantity').get_attribute('max'), '100')
+
         #TODO: test it with zero and check buttons
 
 
