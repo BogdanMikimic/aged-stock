@@ -766,8 +766,44 @@ class UserOffers(StaticLiveServerTestCase):
         # and asks for a lower price
         # she goes back to the offers screen, and she changes the existing offer to 150 kg 2.5% discount and a price per
         # kg of 1,5
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+        xpath = "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']"
+        self.browser.find_element(By.XPATH, xpath).click()
+        self.browser.find_element(By.NAME, 'changeOfferRedirect').click()
+        qty = self.browser.find_element(By.NAME, 'quantity')
+        qty.clear()
+        qty.send_keys('150')
+        disc = self.browser.find_element(By.NAME, 'discount_in_percent')
+        disc.clear()
+        disc.send_keys('2.50')
+        price = self.browser.find_element(By.NAME, 'price')
+        price.clear()
+        price.send_keys('1.50')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit_offer').click()
 
-        # she checks that the new offer registered correctly on the offers log page
+        # she lands on the order confirmation page
+        self.assertEqual(self.browser.title, 'Great job!')
+
+        # and she navigates to the offers log page
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+
+        # she checks that the new offer registered correctly on the offers log (pending offers) page
+        self.assertEqual(self.browser.title, 'Pending offers')
+        offers = self.browser.find_elements(By.CLASS_NAME, 'Offered')
+        self.assertEqual(len(offers), 1)
+        # she checks that the first offer is for the COM-008-310 material (should be the only one offered)
+        first_offer_data_td = offers[0].find_elements(By.TAG_NAME, 'td')
+        self.assertEqual(first_offer_data_td[0].text, 'COM-008-310')
+        # she checks that the customer is CAdvanced Orchards Finance Ltd.
+        self.assertEqual(first_offer_data_td[1].text, 'Advanced Orchards Finance Ltd.')
+        # she checks that offer was made for 150kg
+        self.assertEqual(first_offer_data_td[2].text, '150')
+        # she checks that the discount applied is 2.50%
+        self.assertEqual(first_offer_data_td[3].text, '2.50')
+        # she checks that the price per kilo is 1.50
+        self.assertEqual(first_offer_data_td[4].text, '1.50')
+        # she also checks that the offer is rightfully labeled as offered
+        self.assertEqual(first_offer_data_td[8].text, 'Offered')
 
         # she checks that the offer is registered correctly on the OffersLog database
 
