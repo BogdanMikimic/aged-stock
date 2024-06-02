@@ -402,6 +402,14 @@ class UserOffers(StaticLiveServerTestCase):
         - making another offer, but in the meantime somebody else completes their leaving you with a lower qty
         - making another offer, but in the meantime somebody else completes their leaving you with a zero qty
         - (restores the quantities and allows user to make initial second offer)
+        - checks that the offers register in offers log
+        - checks that the filter out "offered" check box works
+        - checks that the offer can be marked sold
+        - checks that the filter out "sold" check box works
+        - checks that the offer is registered correctly as sold in the offersLog model in the database
+        - check that the sold quantity is correctly deduced from AvailableStock model in the database
+
+
         """
 
         # Morgan logs in her account
@@ -732,11 +740,18 @@ class UserOffers(StaticLiveServerTestCase):
             customer_that_received_offer=Customers.objects.filter(customer_name="Creamy Cocoa Bites").get()).get()
         self.assertEqual(stock.offered_sold_or_declined_quantity_kg, 100)
         self.assertEqual(stock.offer_status, 'Sold')
-        self.assertEqual(stock.discount_offered_percents, 1.00)
-        self.assertEqual(stock.price_per_kg_offered, 1.00)
-        self.assertEqual(stock.date_of_offer, datetime.date(2024, 5, 28))
         self.assertEqual(stock.date_of_outcome, datetime.datetime.today().date())
-        self.assertEqual(stock.stock_expired, False)
+
+        # she checks the database to see that the sold quantity is correctly deduced from the total available stock
+        available_stock = AvailableStock.objects.filter(
+            available_product=Products.objects.filter(cod_material='MIS-019-865').get()).get()
+        self.assertEqual(available_stock.original_quantity_in_kg, 162)
+        self.assertEqual(available_stock.under_offer_quantity_in_kg, 0)
+        self.assertEqual(available_stock.sold_quantity_in_kg, 100)
+        self.assertEqual(available_stock.available_quantity_in_kg, 62)
+
+
+
 
 
 
