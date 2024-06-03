@@ -868,10 +868,356 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(available_stock.sold_quantity_in_kg, 0)
         self.assertEqual(available_stock.available_quantity_in_kg, 300)
 
-        # a manager logs in
-        # he notices he has a reports button
-        # he checks the offers page to see Morgan's activity
-        # he checks some filters
+class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
+    def setUp(self) -> None:
+        """
+        Creates the webdriver object
+        Creates 2 superuser accounts, one is Mikimic
+        Uploads the customer and stocks files that populate the database
+        Creates 2 sales accounts
+        For each sales account creates one offer that is sold, one declined and one under offer
+        """
+        # Initialize the Firefox WebDriver with the specified profile
+        self.browser = webdriver.Firefox()
+        self.browser.implicitly_wait(10)
+        # Admin has an account
+        self.superuser = User.objects.create_superuser(
+            username='Mikimic',
+            first_name='Miki',
+            last_name='Mic',
+            password='adminpassword',
+            email='admin@example.com'
+        )
+
+        # He creates one account for Morgan who is a salesperson
+        self.regular_user = User.objects.create_user(
+            username='Morgan',
+            first_name='Morgan',
+            last_name='Davis',
+            password='password123',
+            email='morgan@example.com'
+        )
+
+        # He creates another account for Alex who is a salesperson
+        self.regular_user = User.objects.create_user(
+            username='Alex',
+            first_name='Alex',
+            last_name='Martinez',
+            password='password123',
+            email='alex@example.com'
+        )
+
+        # And one account for Quinn who is an administration
+        self.superuser = User.objects.create_superuser(
+            username='Quinn',
+            first_name='Quinn',
+            last_name='Miller',
+            password='password123',
+            email='quinn@example.com'
+        )
+
+        # he uploads the xlsx files in the database
+        self.browser.get(self.live_server_url)
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Mikimic')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('adminpassword')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        right_relative_path = 'aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+        self.browser.get(self.live_server_url)
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
+        right_absolute_file_path = os.path.abspath(right_relative_path)
+        xlsx_upload_field.send_keys(right_absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+
+        # Morgan logs in her account
+        self.browser.get(self.live_server_url + '/accounts/login/')
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Morgan')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('password123')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+
+        # she navigates to her account, and she makes an offer for 100kg MIS-019-865
+        self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-019-865']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text("Creamy Cocoa Bites")
+        # and makes the offer for 100 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('100')
+        # set the discount to 1
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('1')
+        # set the price to 1
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # click the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # the offer is accepted, so she marks it sold
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-019-865']]//a[@class='a_menu_make_offer']").click()
+        self.browser.find_element(By.NAME, 'sold').click()
+
+        # she goes back to make another offer
+        self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
+        # and makes the offer for 200 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('200')
+        # set the discount to 2
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('2')
+        # set the price to 1
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # she clicks the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # the offer is rejected so she marks it declined
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']").click()
+        self.browser.find_element(By.NAME, 'declined').click()
+
+        # she goes back and makes another offer
+        self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='FIL-002-400']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Fine Herbs')
+        # and makes the offer for 25 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('25')
+        # set the discount to 2.5
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('2.5')
+        # set the price to 1.5
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1.5')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # she clicks the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # Alex logs in his account
+        self.browser.get(self.live_server_url + '/accounts/login/')
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Alex')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('password123')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+
+        # he navigates to her account, and she makes an offer for 75kg MIS-006-402
+        self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-006-402']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text("Decadent Chocolate Treats")
+        # and makes the offer for 75 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('75')
+        # set the discount to 1
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('1')
+        # set the price to 2
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('2')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # click the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # the offer is accepted, so he marks it sold
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-006-402']]//a[@class='a_menu_make_offer']").click()
+        self.browser.find_element(By.NAME, 'sold').click()
+
+        # he goes back to make another offer
+        self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='VEN-002-873']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Polar Resources Industries Ltd.')
+        # and makes the offer for 2 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('2')
+        # set the discount to 5
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('5')
+        # set the price to 10
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('10')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-06-03'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # she clicks the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+        # the offer is rejected so he marks it declined
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='VEN-002-873']]//a[@class='a_menu_make_offer']").click()
+        self.browser.find_element(By.NAME, 'declined').click()
+
+        # he goes back and makes another offer
+        self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
+        self.browser.find_element(By.XPATH, "//tr[td[text()='COM-005-872']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Vital Supplies Engineering Ltd.')
+        # and makes the offer for 100 kg
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('100')
+        # set the discount to 1.5
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('1.5')
+        # set the price to 1.5
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1.5')
+        # set the date to today
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-06-03'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        # she clicks the button to make the offer
+        make_offer_button = self.browser.find_element(By.NAME,
+                                                      'postOne')
+        make_offer_button.click()
+
+    def tearDown(self) -> None:  # This code runs once AFTER EACH test
+        self.browser.quit()  # quits firefox
+
+    def test_manager_checks_reports(self):
+        # Quinn logs in into his account - he is a manager
+        self.browser.get(self.live_server_url + '/accounts/login/')
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys('Quinn')
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys('password123')
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+
+        # He navigates to its reports page - only available to superusers - the page title is Reports
+        self.browser.find_element(By.LINK_TEXT, 'Reports').click()
+        self.assertEqual(self.browser.title, 'Reports')
+        # he is meet by a page that displays 6 rows of data, showing the activity of his sales people
+        self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 7)  # one table row is for table headers
+        # he sees that he has an option to filter out his by salesperson, or to see them all
+        # He opts to see only Morgan's activity
+        select_element = self.browser.find_element(By.NAME, 'nameOfUser')
+        select = Select(select_element)
+        select.select_by_visible_text('Morgan')
+        self.browser.find_element(By.CLASS_NAME, 'input_submit_superuser_form').click()
+        # and now he only sees 3 table rows
+        self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 4)  # one table row is for table headers
+        # he checks that they all belong to Morgan
+        table_rows = self.browser.find_elements(By.TAG_NAME, 'tr')
+        for row in table_rows[1:]:
+            self.assertEqual(row.find_elements(By.TAG_NAME, 'td')[0].text, 'Morgan')
+
+        # he sees that he has another filter available to him, that shows him the activity by offer status
+        # he decides to check what offers Morgan hs that are under offer
+        select_element = self.browser.find_element(By.NAME, 'offerStatus')
+        select = Select(select_element)
+        select.select_by_visible_text('Offered')
+        self.browser.find_element(By.CLASS_NAME, 'input_submit_superuser_form').click()
+        # and now he only sees 1 table row
+        self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 2) # one is with the table header
+        # he checks that the data belongs to Morgan and the status is under offer
+        table_rows = self.browser.find_elements(By.TAG_NAME, 'tr')
+        for row in table_rows[1:]:
+            self.assertEqual(row.find_element(By.CLASS_NAME, 'table_sales_rep').text, 'Morgan')
+            self.assertEqual(row.find_element(By.CLASS_NAME, 'table_status_offered').text, 'Offered')
+
+        # he goes to the salesperson filter and decides to see all under offer offers, no matter who made them
+        select_element = self.browser.find_element(By.NAME, 'nameOfUser')
+        select = Select(select_element)
+        select.select_by_visible_text('All')
+        self.browser.find_element(By.CLASS_NAME, 'input_submit_superuser_form').click()
+        # he now sees that there are 2 rows available to him
+        self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 3)  # one is with the table header
+        # he looks at the third filter, and selects only under offer offers made between the 28th and 29th of May
+        # he selects the date of 28 May for the start date
+        start_date_filter_field = self.browser.find_element(By.ID, 'start')
+        start_date = '2024-05-28'
+        start_date_filter_field.clear()
+        start_date_filter_field.send_keys(start_date)
+
+        # he selects the date of 29 May for the start date
+        end_date_filter_field = self.browser.find_element(By.ID, 'stop')
+        end_date = '2024-05-29'
+        end_date_filter_field.clear()
+        end_date_filter_field.send_keys(end_date)
+
+        # he presses the search button
+        self.browser.find_element(By.CLASS_NAME, 'input_submit_superuser_form').click()
+        # he now sees only one person in the list
+        self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 2)  # one is with the table header
+        # he checks that the offer is made by Morgan, is offered and the offer date is the 28th of May
+        table_rows = self.browser.find_elements(By.TAG_NAME, 'tr')
+        for row in table_rows[1:]:
+            self.assertEqual(row.find_element(By.CLASS_NAME, 'table_sales_rep').text, 'Morgan')
+            self.assertEqual(row.find_element(By.CLASS_NAME, 'table_status_offered').text, 'Offered')
+            self.assertEqual(row.find_elements(By.TAG_NAME, 'td')[7].text, 'May 28, 2024')
+
 
 
 
