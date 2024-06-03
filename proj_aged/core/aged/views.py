@@ -188,9 +188,13 @@ def agedstockupload(request):
 # --------------- users/superusers check available stock
 @login_required
 def userseallstock(request):
-    # shows all available stock page
-    # retrieve all stock that was offered or sold
-    # do not show expired stock
+    """"
+    Shows all available stock page
+    Retrieve all stock that was offered or sold
+    Does not show expired stock
+    HTML page can redirect to making offers page/form
+    """
+    # retrieve offers that are "offered" or "sold", and which are not expired
     touched_stock = OffersLog.objects.filter(stock_expired=False)
     # retrieve all available stock
     free_stock_all = AvailableStock.objects.all().order_by('expiration_date')
@@ -215,12 +219,19 @@ def userseallstock(request):
 # --------------- user/superuser makes offer
 @login_required
 def usersmakeoffer(request, itm_id):
+    """
+    Returns a form for making offers, custom set up with the material which is offered from previous page,
+    and with the user's own customers.
+    If someone else sells all/some available quantity,and not enough quantity remains the user is redirected to
+    the "not enough quantity page
+    Otherwise he is redirected to the successful offer completion page
+    """
     stock_item = AvailableStock.objects.filter(id=itm_id).get()
     customers = Customers.objects.filter(salesperson_owning_account=request.user.id).order_by('customer_name')
     theSpecificStock = AvailableStock.objects.filter(id = itm_id).get()
 
     if request.method == 'GET':
-        return render(request, 'aged/usersmakeoffer.html', {'stock_item':stock_item, 'customers':customers})
+        return render(request, 'aged/usersmakeoffer.html', {'stock_item': stock_item, 'customers': customers})
 
     elif request.method == 'POST':
         # check if the quantity is still available, if so log the offer
@@ -259,6 +270,9 @@ def usersmakeoffer(request, itm_id):
 
 @login_required
 def userawesomeoffer (request, offerId):
+    """
+    This confirms the successful offer and gives the opportunity to download offer as pdf
+    """
     myId = offerId
     if request.method == 'GET':
         return render(request, 'aged/userawesomeoffer.html')
@@ -309,91 +323,111 @@ def userawesomeoffer (request, offerId):
 
 @login_required
 def notenoughstock(request, stockId):
+    """
+    This returns a page with a few options (anchor tags) available to the person, such as
+    remaking the offer for the remaining quantity, or navigating back to other pages
+    """
     stock_item = AvailableStock.objects.filter(id=stockId).get()
     return render(request, 'aged/notenoghstockavailable.html', {'stock_item': stock_item})
 
 
-
 @login_required
 def userpendingoffers(request):
-    # hide all touched stock older than 60 days (2 months), but show offers in the future (if someone decides to make the offer available from tomorrow)
+    """
+    Hides all touched stock older than 60 days (2 months), but show offers in the future
+    (if someone decides to make the offer available from tomorrow, or for next week)
+    """
     azi = datetime.datetime.today()
     sixtyDaysAgo = (azi - datetime.timedelta(days=60)).date()
     pending = OffersLog.objects.filter(date_of_offer__gte=sixtyDaysAgo, sales_rep_that_made_the_offer=request.user).all().order_by('offer_status')
     return render(request, 'aged/userpendingoffers.html', {'pending': pending})
 
 
-
-
 @login_required
 def changeofferedstatus(request, offer_id):
+    #TODO: see comments below maybe
     # check if product is expired!!!!!!!!!!!!!!!!!
+
     # change the status of the offer
     offeredObject = OffersLog.objects.filter(id=offer_id).get()
     if request.method == 'GET':
-        return render(request, 'aged/changeofferedstatus.html', {'object':offeredObject})
+        return render(request, 'aged/changeofferedstatus.html', {'object': offeredObject})
     elif request.method == 'POST':
         # stockObject =
         azi = datetime.date.today()
         if request.POST.get('sold') == "1":
-            # modific in offers log
+            # the "mark it sold" button was pushed - so modify in offers log
             offeredObject.offer_status = 'Sold'
             offeredObject.date_of_outcome = azi
             offeredObject.expiration_date_of_offer = None
             offeredObject.save()
-            # modific in available stock
+            # modify quantity in available stock
             offeredObject.offered_stock.under_offer_quantity_in_kg -= offeredObject.offered_sold_or_declined_quantity_kg
             offeredObject.offered_stock.sold_quantity_in_kg += offeredObject.offered_sold_or_declined_quantity_kg
             offeredObject.offered_stock.save()
             return redirect('userpendingoffers')
         elif request.POST.get('declined') == "1":
-            # modific in offered stoc
+            # the "mark it declined" button was pushed - so modify in offers log
             offeredObject.offer_status = 'Declined'
             offeredObject.date_of_outcome = azi
             offeredObject.expiration_date_of_offer = None
             offeredObject.save()
-            # modific in available stock
+            # modify quantity in available stock
             offeredObject.offered_stock.under_offer_quantity_in_kg -= offeredObject.offered_sold_or_declined_quantity_kg
             offeredObject.offered_stock.available_quantity_in_kg += offeredObject.offered_sold_or_declined_quantity_kg
             offeredObject.offered_stock.save()
             return redirect('userpendingoffers')
         elif request.POST.get('changeOfferRedirect') == "1":
+            # this redirects to a change offer form
             return redirect('changeoffer', offer_id=offeredObject.id, mess='f')
         elif request.POST.get('return') == "1":
             return redirect('userpendingoffers')
 
 
-
 @login_required
 def changeoffer(request, offer_id, mess):
+    """
+    This is used when an existing offer needs to be changed.
+    """
+    # the message is used when, during the process of filling the form to change the offer - in the eventuality
+    # the new offered quantity is more than originally offered and in the meantime somebody offers a portion or integral
+    # the remaining quantity, so the new quantity is less that intended to offer
     # mesajul e folosit daca cumva in timp ce oferta e schimbata, cineva ofera acelasi produs si cantitatea ramasa e mai mica decat se vrea oferit
     if mess == 'f':
         message = ''
     else:
-        message = 'Seems like someone beat you to it and there is not enogh stock left to do this offer. I have adjusted the maximum quantity to display the correct available quantity.'
+        message = 'It seems like someone beat you to it, and there is not enough stock left to increase the offered'
+        message += ' quantity. I have adjusted the maximum quantity to display the correct maximum quantity available .'
     myOfferToChange = OffersLog.objects.filter(id=offer_id).get()
-    customers = Customers.objects.filter(salesperson_owning_account = request.user)
-    # aici vreau sa returnui in template nu cantitatea maxima existenta, ci cantitatea maxima plus ce e deja oferit
+    customers = Customers.objects.filter(salesperson_owning_account=request.user)
+    # here I want the whole quantity, available pus what was originally offered
     kgAvailableWithTheOnesAddedInTheOffer = myOfferToChange.offered_sold_or_declined_quantity_kg + myOfferToChange.offered_stock.available_quantity_in_kg
     if request.method == 'GET':
-        # nu ii place auto-fill-ul tagului imput de tip date sa primeasca obiect de gen date, are nevoie de string
         dateOfOfferString = str(myOfferToChange.date_of_offer)
-        return render(request, 'aged/changeoffer.html', {'offer':myOfferToChange, 'customers':customers, 'wholeQuantity':kgAvailableWithTheOnesAddedInTheOffer, 'dateOfOfferString':dateOfOfferString, 'message':message })
+        return render(request, 'aged/changeoffer.html',
+                      {'offer': myOfferToChange,
+                       'customers': customers,
+                       'wholeQuantity': kgAvailableWithTheOnesAddedInTheOffer,
+                       'dateOfOfferString': dateOfOfferString,
+                       'message': message})
     elif request.method == 'POST':
-        # trebuie sa verific si daca este cantitate actuala suficienta si nu a luat-o cineva inainte
+        # check that the actual quantity (offered + free) is still available (nobody else offered the quantity while
+        # form was filled)
         if kgAvailableWithTheOnesAddedInTheOffer >= int(request.POST.get('quantity')):
-            # imi scot ca variabile cantitatile cu care lucrez
+            # get the quantities into variables
             vecheaOfertaKg = myOfferToChange.offered_sold_or_declined_quantity_kg
             nouaOfertaKg = int(request.POST.get('quantity'))
             totalSubOfertaKg = myOfferToChange.offered_stock.under_offer_quantity_in_kg
             totalDisponibilKg = myOfferToChange.offered_stock.available_quantity_in_kg
-            # modificari la AvailableStock (ajustari la under offer quantity si available qunatity)
-            # scad din quantity under offer al stockului disponibil valoarea initiala (ca si cum oferta nu s-a facut vreodata), dupa care adaug oferta actuala
+            # AvailableStock adjust under offer quantity and available quantity
+            # subtract the old offered qty from total offered qty (nullifying the previous transaction),
+            # and then add the new offer value (which can be bigger or smaller than the original one)
             myOfferToChange.offered_stock.under_offer_quantity_in_kg = (totalSubOfertaKg - vecheaOfertaKg) + nouaOfertaKg
-            # adaug la available quantity a stockului cantitatea care era oferita (ca si cum oferta nu s-a intamplat), dupa care scad noua cantitate
+            # add to available quantity the previously offered qty (practically nullifying the transaction),
+            # then subtract the new offered quantity
             myOfferToChange.offered_stock.available_quantity_in_kg = (totalDisponibilKg + vecheaOfertaKg) - nouaOfertaKg
 
-            # Adaug noile valori la oferta (modific oferta)
+            # Add the other values from the form
             myOfferToChange.customer_that_received_offer = Customers.objects.filter(id=request.POST.get('customer')).get()
             myOfferToChange.offered_sold_or_declined_quantity_kg = request.POST.get('quantity')
             myOfferToChange.discount_offered_percents = request.POST.get('discount_in_percent')
@@ -401,12 +435,13 @@ def changeoffer(request, offer_id, mess):
             myOfferToChange.date_of_offer = request.POST.get('date_of_offer')
             myOfferToChange.expiration_date_of_offer = datetime.datetime.strptime(request.POST.get('date_of_offer'), '%Y-%m-%d').date() + datetime.timedelta(days=7)
 
-            # Salvez modificarile in ambele tabele
+            # Save modifications
             myOfferToChange.offered_stock.save()
             myOfferToChange.save()
 
             return redirect('userawesomeoffer', offerId=offer_id)
         else:
+            # if quantity is too low, is adjusted and the form is returned
             return redirect('changeoffer', offer_id=myOfferToChange.id, mess='t')
 
 # Opens the page where superusers can see the reports of who sold what, what is under offer, declined, etc
@@ -482,8 +517,6 @@ def superuserreports(request):
             obj = OffersLog.objects.filter(date_of_offer__range=[start, end]).all()
             if stateOfOffers != 'All':
                 obj = OffersLog.objects.filter(date_of_offer__range=[start, end], offer_status=stateOfOffers).all()
-
-
 
     return render(request, 'aged/superuserreports.html', {'objects':obj, 'allUsersWithOffers':allUsersWithOffers, 'allOfferStatus':allOfferStatus, 'preselectValues':preselectValues})
 

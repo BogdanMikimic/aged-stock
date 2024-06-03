@@ -420,6 +420,7 @@ class UserOffers(StaticLiveServerTestCase):
         - check that the declined quantity is correctly adjusted in AvailableStock model in the database
         - check that the declined quantity is restored and the remaining qty displays correctly in the all stocks page
         - check that the declined quantity registers correctly in the all stocks page
+        - tests changing the offered quantity, but someone removes the value before the form is submitted
 
         """
 
@@ -868,6 +869,59 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(available_stock.sold_quantity_in_kg, 0)
         self.assertEqual(available_stock.available_quantity_in_kg, 300)
 
+        # she goes and makes another offer for 230kg of the product FIL-002-400 which has 255kg available
+        self.browser.find_element(By.XPATH, "//tr[td[text()='FIL-002-400']]//a[@class='a_menu_make_offer']").click()
+        select_element = self.browser.find_element(By.NAME, "customer")
+        select = Select(select_element)
+        select.select_by_visible_text('Decadent Cocoa Bars')
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys('230')
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys('1')
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys('1')
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+        date_field.clear()
+        date_field.send_keys(today_date)
+        make_offer_button = self.browser.find_element(By.NAME, 'postOne')
+        make_offer_button.click()
+
+        # the customer contacts her to ask for 10 kg more
+        # so she goes to offers to change the offer
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+        xpath = "//tr[td[text()='FIL-002-400']]//a[@class='a_menu_make_offer']"
+        self.browser.find_element(By.XPATH, xpath).click()
+        self.browser.find_element(By.NAME, 'changeOfferRedirect').click()
+        qty = self.browser.find_element(By.NAME, 'quantity')
+        qty.clear()
+        qty.send_keys('240')
+        disc = self.browser.find_element(By.NAME, 'discount_in_percent')
+        disc.clear()
+        disc.send_keys('1')
+        price = self.browser.find_element(By.NAME, 'price')
+        price.clear()
+        price.send_keys('1')
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        today_date = '2024-05-28'
+
+        # however a colleague swoops in and offers 21kg to someone else, and she is left with 4kg, 6kg short
+        # of what she needs
+        my_stock = AvailableStock.objects.filter(available_product=Products.objects.filter(
+            cod_material='FIL-002-400').get()).get()
+        my_stock.available_quantity_in_kg -= 21
+        my_stock.save()
+        # she is met by a message informing her someone beat her to it
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit_offer').click()
+        self.assertIn('It seems like someone beat you to it, and there is not enough stock left to increase the offered',
+                      self.browser.find_element(By.ID, 'id_message').text)
+        # there are only 4kg left, so a total quantity available should be 230kg from the original offer +4kg so 234 kg
+        self.assertEqual(self.browser.find_element(By.ID, 'total_left_quantity').text, '234kg')
+
+
 class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
     def setUp(self) -> None:
         """
@@ -876,6 +930,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
         Uploads the customer and stocks files that populate the database
         Creates 2 sales accounts
         For each sales account creates one offer that is sold, one declined and one under offer
+        Runs the filter tests on the reports page
         """
         # Initialize the Firefox WebDriver with the specified profile
         self.browser = webdriver.Firefox()
