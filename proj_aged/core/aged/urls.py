@@ -16,6 +16,6 @@ urlpatterns = [
             path('task1/', views.task1),
             path('changeofferedstatus/<str:offer_id>', views.changeofferedstatus, name='changeofferedstatus'),
             path('changeoffer/<str:offer_id>/<str:mess>', views.changeoffer, name='changeoffer'),
-            path('help/', views.help, name='help'),
+            path('stock_help/', views.stock_help, name='help'),
 
 ]

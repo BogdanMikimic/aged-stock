@@ -521,73 +521,83 @@ def superuserreports(request):
     return render(request, 'aged/superuserreports.html', {'objects':obj, 'allUsersWithOffers':allUsersWithOffers, 'allOfferStatus':allOfferStatus, 'preselectValues':preselectValues})
 
 @login_required
-def help(request):
+def stock_help(request):
     return render(request, 'aged/help.html')
 
 
-# remove expired offers and expired products from all stock table, all offers older than 365 days from offers log and send daily backups
+
 def task1(request):
-    print('Am primit request la pagina tasks 1')
-    # testeaza daca exista oferte expirate, face din nou cantitatea blocata ca available in stocuri
-    # pagina e chemata automat in Python anywere - exista o functie care permite rularea automata
-    # a unui fisier pe care il doresc in cazul meu fisierul se numeste fisier myTasks.py
-    # si in fiserul asta creez un request spre pagina asta, ruland automat si codul
-    # ca sa nu ruleze de mai multe ori am facut in models un aFostVerificatAzi care stocheaza data de azi
+    """
+    Removes expired PRODUCTS from all stock table
+    Sets offers that contain expired PRODUCTS stock_expired field to True
+    Removes expired OFFERS and moves quantity back in available stock
 
-    # verifica daca codul nu a rulat deja azi
-    azi = datetime.date.today()
-    alreadyDoneToday = False
-    dataInDb = AFostVerificatAzi.objects.all()
-    for itm in dataInDb:
-        if itm.expiredOferedStock == azi:
-            alreadyDoneToday = True
+    This task runs automatically once a day, by calling a specific url
+    Running the code creates a database entry with current date, that is checked everytime the code is called
+    The task runs at 4 o'clock in the morning, so the filter __lt in the database looks for products that expired
+    yesterday
 
-    if alreadyDoneToday == False:
-        # inregistrea operatiunea ca facuta azi
-        dt = AFostVerificatAzi(expiredOferedStock = azi)
+    *(not implemented) Process historical data and archives older requests
+    *(not implemented) emails daily backups as csvs
+    """
+
+    # the code runs once a day - check if it ran today
+    today_date = datetime.date.today()
+    already_done_today = False
+    data_in_db = AFostVerificatAzi.objects.all()
+    for offer_containing_expired_stock in data_in_db:
+        if offer_containing_expired_stock.expiredOferedStock == today_date:
+            already_done_today = True
+
+    if already_done_today == False:
+        # Delete expired products from available stock + mark the offers as expired
+        expired_stock_in_available_stock_list = AvailableStock.objects.filter(expiration_date__lt=today_date).all() # caveat - codul ruleaza la 4 dimineata, asa ca nu sterg produsul in ziua in care expira, ci in dimineata zilei urmatoare
+        for expired_stock in expired_stock_in_available_stock_list:
+            # retrieve all the offers that contain the expired stock
+            list_of_offers_containing_expired_stock = OffersLog.objects.filter(offered_stock=expired_stock).all()
+            for offer_containing_expired_stock in list_of_offers_containing_expired_stock:
+                # mark offer as containing an expired product
+                offer_containing_expired_stock.stock_expired = True
+                offer_containing_expired_stock.save()
+            expired_stock.delete()
+
+        # # Find OFFERS that expire today and change their status to expired
+        # # Return the quantity to available stock
+        # expiredOfferStockToReturn = OffersLog.objects.filter(expiration_date_of_offer__lt=today_date).all()
+        # for stock in expiredOfferStockToReturn:
+        #     # doar ca sa ma asigur ca nu operez din gresealade doua ori pe acelasi stock, verific sa nu fie 'Offer expired'
+        #     if stock.offer_status != 'Offer Expired':
+        #         kgBlockedInOffer = stock.offered_sold_or_declined_quantity_kg
+        #
+        #         # verifica daca stocul nu a expirat si a fost sters (this should not happen in the wild)
+        #         if stock.offered_stock != None: # daca stocul e expirat, e None
+        #             # returnuie cantitatea din oferta expirata in stockul original
+        #             # in stocul original sunt mai multe fielduri care arata unde e stocul
+        #             # (o parte din stock poate fi disponibila, o alta e under offer, o alta e sold)
+        #             # bucata asta de cod cauta sa returnuie in stocul disponibil (NU in logul cu oferte)
+        #             # cantitatea oferita
+        #             availabelStockObject = stock.offered_stock
+        #             availabelStockObject.under_offer_quantity_in_kg -= kgBlockedInOffer
+        #             availabelStockObject.available_quantity_in_kg += kgBlockedInOffer
+        #             availabelStockObject.save()
+        #         else: # daca stocule e expirat
+        #             stock.stock_expired = True
+        #         # modifica statusul si data outcomeului in Offers log
+        #         stock.offer_status = 'Offer Expired'
+        #         stock.date_of_outcome = today_date - datetime.timedelta(days=1) # practic stocul a explicat ieri seara, dar eu il verific a doua zi dimineata
+        #         stock.save()
+        #
+        #
+        #
+        #
+        # # TASK 3 - sterge din offers log toate ofertele mai vechi de un an (365 zile), doar ca codul ruleaza a doua zi dimineata
+        # dataDeAcumUnAn = today_date - datetime.timedelta(days=366)
+        # oferteMaiVechiDe365Zile = OffersLog.objects.filter(date_of_offer__lte=dataDeAcumUnAn).all()
+        # if len(oferteMaiVechiDe365Zile)>0: # daca exista oferte mai vechi
+        #     for oferta in oferteMaiVechiDe365Zile:
+        #         oferta.delete()
+
+        # save the date in the database to mark that the operations have been done today
+        dt = AFostVerificatAzi(expiredOferedStock=today_date)
         dt.save()
-
-        # TASK 1! cauta ofertele care expira azi si le schimba statusul la expirat + returnuie cantitatea alocata in stocul liber
-        expiredOfferStockToReturn = OffersLog.objects.filter(expiration_date_of_offer__lt=azi).all() # caveat - codul ruleaza la 4 dimineata, asa ca nu sterg produsul in ziua in care expira, ci in dimineata zilei urmatoare
-        for stock in expiredOfferStockToReturn:
-            # doar ca sa ma asigur ca nu operez din gresealade doua ori pe acelasi stock, verific sa nu fie 'Offer expired'
-            if stock.offer_status != 'Offer Expired':
-                kgBlockedInOffer = stock.offered_sold_or_declined_quantity_kg
-
-                # verifica daca stocul nu a expirat si a fost sters (this should not happen in the wild)
-                if stock.offered_stock != None: # daca stocul e expirat, e None
-                    # returnuie cantitatea din oferta expirata in stockul original
-                    # in stocul original sunt mai multe fielduri care arata unde e stocul
-                    # (o parte din stock poate fi disponibila, o alta e under offer, o alta e sold)
-                    # bucata asta de cod cauta sa returnuie in stocul disponibil (NU in logul cu oferte)
-                    # cantitatea oferita
-                    availabelStockObject = stock.offered_stock
-                    availabelStockObject.under_offer_quantity_in_kg -= kgBlockedInOffer
-                    availabelStockObject.available_quantity_in_kg += kgBlockedInOffer
-                    availabelStockObject.save()
-                else: # daca stocule e expirat
-                    stock.stock_expired = True
-                # modifica statusul si data outcomeului in Offers log
-                stock.offer_status = 'Offer Expired'
-                stock.date_of_outcome = azi - datetime.timedelta(days=1) # practic stocul a explicat ieri seara, dar eu il verific a doua zi dimineata
-                stock.save()
-
-
-        # TASK 2 - sterge toate produsele expirate din oferte + marcheaza stocul ca expirat
-        data_exp_stoc_bd = AvailableStock.objects.filter(expiration_date__lt=azi).all() # caveat - codul ruleaza la 4 dimineata, asa ca nu sterg produsul in ziua in care expira, ci in dimineata zilei urmatoare
-        for stock0 in data_exp_stoc_bd:
-            expiredStockId = stock0
-            listaOferteCuStocExpirat = OffersLog.objects.filter(offered_stock = expiredStockId).all()
-            for itm in listaOferteCuStocExpirat:
-                itm.stock_expired = True
-                itm.save()
-            stock0.delete()
-
-        # TASK 3 - sterge din offers log toate ofertele mai vechi de un an (365 zile), doar ca codul ruleaza a doua zi dimineata
-        dataDeAcumUnAn = azi - datetime.timedelta(days=366)
-        oferteMaiVechiDe365Zile = OffersLog.objects.filter(date_of_offer__lte=dataDeAcumUnAn).all()
-        if len(oferteMaiVechiDe365Zile)>0: # daca exista oferte mai vechi
-            for oferta in oferteMaiVechiDe365Zile:
-                oferta.delete()
-
     return render(request, 'aged/teste.html')

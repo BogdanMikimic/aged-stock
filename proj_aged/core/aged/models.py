@@ -94,7 +94,7 @@ class AvailableStock(models.Model):
     available_product = models.ForeignKey(Products, null=True, blank=True, on_delete=models.RESTRICT)
     stock_location = models.ForeignKey(LocationsForStocks, null=True, blank=True, on_delete=models.RESTRICT)
     expiration_date = models.DateField()
-    batch = models.CharField(max_length = 100)
+    batch = models.CharField(max_length=100)
     original_quantity_in_kg = models.IntegerField()
     under_offer_quantity_in_kg = models.IntegerField(default=0)
     sold_quantity_in_kg = models.IntegerField(default=0)
@@ -113,7 +113,10 @@ class OffersLog(models.Model):
     offered_product = models.ForeignKey(Products, on_delete=models.RESTRICT)
     customer_that_received_offer = models.ForeignKey(Customers, on_delete=models.RESTRICT)
     offered_sold_or_declined_quantity_kg = models.IntegerField()
-    STATUS_CHOICES = ( ('Offered', 'Offered'), ('Declined', 'Declined'), ('Sold', 'Sold'), ('Offer Expired', 'Offer Expired'))
+    STATUS_CHOICES = (('Offered', 'Offered'),
+                      ('Declined', 'Declined'),
+                      ('Sold', 'Sold'),
+                      ('Offer Expired', 'Offer Expired'))
     offer_status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     discount_offered_percents = models.DecimalField(max_digits=5, decimal_places=2)
     price_per_kg_offered = models.DecimalField(max_digits=7, decimal_places=2)

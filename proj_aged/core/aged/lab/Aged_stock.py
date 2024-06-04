@@ -152,6 +152,7 @@ def put_available_stock_in_the_database(dataframe: object) -> None:
     the available quantity is trusted
     The stock is uniquely identified by the material name, batch number and expiration date.
     No two stocks can have the same material name, batch number and expiration date.
+    Checks that product is not expired
 
     :param dataframe: pandas dataframe containing products information
     :returns: None
