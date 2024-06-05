@@ -245,7 +245,6 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
         # he also looks in the database and checks for a few customers that were in the xlsx file
         my_customers_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx')
         random_rows = my_customers_xlsx.sample(n=2)
-        print(random_rows.iloc[0]['Customer Name'], random_rows.iloc[0]['Customer Number'], random_rows.iloc[0]['Customer Care Agent'])
         self.assertTrue(Customers.objects.filter(
             customer_name=random_rows.iloc[0]['Customer Name'],
             customer_number=random_rows.iloc[0]['Customer Number'],
@@ -299,28 +298,30 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
         self.assertEqual(self.browser.find_element(By.ID, 'span_message').text, 'File uploaded')
 
         # he checks his xlsx file for a few random products and checks that there are in the database
+        my_stock_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+        random_rows = my_stock_xlsx.sample(n=2)
         self.assertTrue(AvailableStock.objects.filter(
-            available_product=Products.objects.filter(cod_material='MIS-002-871').get(),
-            stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
-            expiration_date=date_to_string_or_string_to_date('2025-01-23'),
-            batch=86697483,
+            available_product=Products.objects.filter(cod_material=random_rows.iloc[0]['Material']).get(),
+            stock_location=LocationsForStocks.objects.filter(location_of_stocks=random_rows.iloc[0]['Stor loc']).get(),
+            expiration_date=random_rows.iloc[0]['Expiration date'].date(),
+            batch=random_rows.iloc[0]['Batch'],
             # he is mindful that the app converts floats to integers
-            original_quantity_in_kg=131,
+            original_quantity_in_kg=int(random_rows.iloc[0]['Quantity']),
             under_offer_quantity_in_kg=0,
             sold_quantity_in_kg=0,
-            available_quantity_in_kg=131
+            available_quantity_in_kg=int(random_rows.iloc[0]['Quantity'])
         ).exists())
 
         self.assertTrue(AvailableStock.objects.filter(
-            available_product=Products.objects.filter(cod_material='CHO-154-472').get(),
-            stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
-            expiration_date=date_to_string_or_string_to_date('2024-09-04'),
-            batch=9189809447,
+            available_product=Products.objects.filter(cod_material=random_rows.iloc[1]['Material']).get(),
+            stock_location=LocationsForStocks.objects.filter(location_of_stocks=random_rows.iloc[1]['Stor loc']).get(),
+            expiration_date=random_rows.iloc[1]['Expiration date'].date(),
+            batch=random_rows.iloc[1]['Batch'],
             # he is mindful that the app converts floats to integers
-            original_quantity_in_kg=500,
+            original_quantity_in_kg=int(random_rows.iloc[1]['Quantity']),
             under_offer_quantity_in_kg=0,
             sold_quantity_in_kg=0,
-            available_quantity_in_kg=500
+            available_quantity_in_kg=int(random_rows.iloc[1]['Quantity'])
         ).exists())
 
         # he also checks that the database captures the fact that the file was already
@@ -389,7 +390,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
 class UserOffers(StaticLiveServerTestCase, MixinFunctions):
     def setUp(self) -> None:
         # Define the directory where files will be downloaded
-        self.download_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
+        self.download_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
 
         # Create the directory if it doesn't exist
         if not os.path.exists(self.download_dir):
@@ -397,10 +398,10 @@ class UserOffers(StaticLiveServerTestCase, MixinFunctions):
 
         # Set Firefox profile preferences for download
         option = webdriver.FirefoxOptions()
-        option.set_preference("browser.download.folderList", 2)  # Use custom download location
-        option.set_preference("browser.download.dir", self.download_dir)
-        option.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/pdf")  # MIME type for PDF
-        option.set_preference("pdfjs.disabled", True)  # Disable Firefox's built-in PDF viewer
+        option.set_preference('browser.download.folderList', 2)  # Use custom download location
+        option.set_preference('browser.download.dir', self.download_dir)
+        option.set_preference('browser.helperApps.neverAsk.saveToDisk', 'application/pdf')  # MIME type for PDF
+        option.set_preference('pdfjs.disabled', True)  # Disable Firefox's built-in PDF viewer
 
         # Initialize the Firefox WebDriver with the specified profile
         self.browser = webdriver.Firefox(options=option)
