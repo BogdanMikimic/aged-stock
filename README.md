@@ -36,6 +36,16 @@ There are 3 types of accounts:
 ## Unit and functional tests
 * unit tests: see proj_aged/core/aged/tests.py  
 * functional tests: see proj_aged/core/functional_tests/tests.py  
+* NOTE: the provided "...AgedStock...xlsx" documents contain an expiration date for
+products. Some functional tests - like the one testing the function that clears
+expired products, will wipe out all expired products from the database, not to mention
+that there is another function that skip expired products in the .xlsx when uploading the
+data in the database in the first place. Most functional tests work by searching for existing 
+products in the tables - which won't be there if the product is expired, so you will get errors
+when running the tests. So make sure to modify the expiration dates and place them in the future
+in the xlsx files (01_good_AgedStock.xlsx which is the main file that contains the complete dataset, 
+but the other ones containing the AgedStock words are used too for different tests).
+
 
 ## Database structure
 * see attached database schema

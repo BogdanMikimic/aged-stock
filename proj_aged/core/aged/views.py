@@ -518,7 +518,7 @@ def superuserreports(request):
             if stateOfOffers != 'All':
                 obj = OffersLog.objects.filter(date_of_offer__range=[start, end], offer_status=stateOfOffers).all()
 
-    return render(request, 'aged/superuserreports.html', {'objects':obj, 'allUsersWithOffers':allUsersWithOffers, 'allOfferStatus':allOfferStatus, 'preselectValues':preselectValues})
+    return render(request, 'aged/superuserreports.html', {'objects': obj, 'allUsersWithOffers': allUsersWithOffers, 'allOfferStatus':allOfferStatus, 'preselectValues':preselectValues})
 
 @login_required
 def stock_help(request):

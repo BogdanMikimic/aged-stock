@@ -11,6 +11,7 @@ from aged.models import AvailableStock,\
     OffersLog
 
 from aged.lab.Aged_stock import date_to_string_or_string_to_date
+from aged.lab.Sales_people_and_their_accounts2 import return_data_frame_without_empty_rows_and_cols
 from selenium.webdriver.common.by import By
 from django.contrib.auth.models import User
 import os
@@ -19,11 +20,150 @@ import pandas as pd
 import time
 import PyPDF2
 
+
+message = '''
+Hi!
+
+You are now running functional tests for the "Aged Stock" tool.
+Each test was checked at the time it was written with the provided dataset,
+uploaded from one of the  AgedStock.xlsx files (for instance 01_good_AgedStock.xlsx)
+
+However, because the nature of the app is to manage stock close to the expiration date,
+and several functions prevent uploading of expired data from the xlsx file and periodically
+clear expired offers/products, some of your tests may fail, or you will get a Selenium error. For
+instance Selenium may look for a specific product code in a table row, without finding it, because
+at the time you are running the test, the offer is expired, and the product was never uploaded
+into the database as available stock in the first place.
+
+If that happens, first check the "proj_aged/core/aged/lab/DataSafeOnes/01_good_AgedStock.xlsx" file,
+column I - Expiration date, and make sure all dates are in the future.
+
+Next, MixinFunctions.my_offer_date returns 2 dates - a "present" date and "future" offer date.
+It will make sense for you to change those to a more appropriate dates that represent the present/future.  
+'''
+print(message)
+
+class MixinFunctions:
+    def return_xlsx_dataframe(self, relative_path_to_xlsx: str) -> pd.DataFrame:
+        right_absolute_file_path = os.path.abspath(relative_path_to_xlsx)
+        return return_data_frame_without_empty_rows_and_cols(right_absolute_file_path)
+
+    def my_offer_date(self, is_present=True) -> str:
+        """
+        This function is used to return dates for the creation of offers
+        I used 2 type of dates in the code for the offers, a 'present' one, and a 'future' one
+        They were used to check different filters and that data registered correctly in the database.
+        """
+        if is_present:
+            return '2024-05-28'
+        else:
+            return '2024-06-03'
+
+    def make_offer(self,
+                   customer_name: str,
+                   offered_quantity: str,
+                   discount_percent: str,
+                   price_per_kg: str,
+                   date_of_offer: str) -> None:
+        """
+        Contains all the Selenium logic to fill the form that creates a product offer
+        """
+        # select customer
+        select_element = self.browser.find_element(By.NAME, 'customer')
+        select = Select(select_element)
+        select.select_by_visible_text(customer_name)
+        # offered quantity
+        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        quantity_field.clear()
+        quantity_field.send_keys(offered_quantity)
+        # offered discount
+        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
+        discount_field.clear()
+        discount_field.send_keys(discount_percent)
+        # offered price/kg
+        price_field = self.browser.find_element(By.NAME, 'price')
+        price_field.clear()
+        price_field.send_keys(price_per_kg)
+        # offer date YYYY-MM-DD format -> '2024-05-28'
+        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
+        date_field.clear()
+        date_field.send_keys(date_of_offer)
+
+    def create_account(self, first_name: str, last_name: str, is_superuser=True) -> None:
+        if is_superuser:
+            if first_name == 'Miki':
+                User.objects.create_superuser(
+                    username='Mikimic',
+                    first_name='Miki',
+                    last_name='Mic',
+                    password='adminpassword',
+                    email='admin@example.com'
+                    )
+            else:
+                User.objects.create_superuser(
+                    username=first_name,
+                    first_name=first_name,
+                    last_name=last_name,
+                    password='password123',
+                    email=f'{first_name}@example.com'
+                )
+        else:
+            User.objects.create_user(
+                username=first_name,
+                first_name=first_name,
+                last_name=last_name,
+                password='password123',
+                email=f'{first_name}@example.com'
+            )
+
+    def log_in_account(self, username: str, password: str) -> None:
+        """
+        Logs user or superuser in its account
+        """
+        self.browser.get(self.live_server_url + '/accounts/login/')
+        username_input = self.browser.find_element(By.ID, 'id_username')
+        username_input.send_keys(username)
+        password_input = self.browser.find_element(By.ID, 'id_password')
+        password_input.send_keys(password)
+        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+
+    def upload_aged_stock_only(self, relative_path_to_aged_stock_xlsx) -> None:
+        self.log_in_account('Mikimic', 'adminpassword')
+        self.browser.get(self.live_server_url)
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        relative_file_path = relative_path_to_aged_stock_xlsx
+        absolute_file_path = os.path.abspath(relative_file_path)
+        xlsx_upload_field.send_keys(absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+
+    def upload_aged_salespeople_only(self, relative_path_to_aged_stock_xlsx) -> None:
+        self.log_in_account('Mikimic', 'adminpassword')
+        self.browser.get(self.live_server_url)
+        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
+        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
+        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
+        relative_file_path = relative_path_to_aged_stock_xlsx
+        absolute_file_path = os.path.abspath(relative_file_path)
+        xlsx_upload_field.send_keys(absolute_file_path)
+        self.browser.find_element(By.ID, 'id_submit_file').click()
+
+    def admin_uploads_salespeople_and_aged_stock_xlsx_to_db(self,
+                                                            relative_path_to_salespeople_xlsx: str,
+                                                            relative_path_to_aged_stock_xlsx: str) -> None:
+
+        # first upload the file - with salespeople, customer care agents, and customers
+        self.upload_aged_salespeople_only(relative_path_to_salespeople_xlsx)
+        # second file (aged stock)
+        self.upload_aged_stock_only(relative_path_to_aged_stock_xlsx)
+
+
 # Morgan - a salesperson in the UK department heard about this cool app that was designed by a colleague
 # to help the sales people better manage their aged stock
 class LoginIsRequired(StaticLiveServerTestCase):
     def setUp(self) -> None:  # This code runs once BEFORE EACH test
-        self.browser = webdriver.Firefox() # starts firefox
+        self.browser = webdriver.Firefox()  # starts firefox
         self.browser.implicitly_wait(5)
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
@@ -53,29 +193,19 @@ class LoginIsRequired(StaticLiveServerTestCase):
 
         # convinced that she needs a username and a password, she goes to the admin to have one created
 
-class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
+
+class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
     def setUp(self) -> None:  # This code runs once BEFORE EACH test
         self.browser = webdriver.Firefox() # starts firefox
         # Admin creates a superuser for himself (needs to be Mikimic)
-        self.superuser = User.objects.create_superuser(
-            username='Mikimic',
-            first_name='Miki',
-            last_name='Mic',
-            password='adminpassword',
-            email='admin@example.com'
-        )
+        self.create_account('Miki', 'Mic')
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
         self.browser.quit()  # quits firefox
 
-    # And logs into his acocunt - which differs from anyone else's because it has an "Upload Files ->" button
+    # And logs into his account - which differs from anyone else's because it has an "Upload Files ->" button
     def test_log_in_and_customer_file_upload_for_admin(self):
-        self.browser.get(self.live_server_url)
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Mikimic')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('adminpassword')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.log_in_account('Mikimic', 'adminpassword')
         upload_files_button = self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢')
         self.assertIsNotNone(upload_files_button)
         # He clicks on upload files button
@@ -95,66 +225,44 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # and he is meet by an error message
         self.assertEqual(self.browser.find_element(By.ID, 'upload_status').text,
                          'The file has more than one tab. Fix file and re-upload')
-        # he goes back and tries again
-        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
-        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
-        # but this time he uploads a file that holds an empty spreadsheet
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        wrong_relative_path = 'aged/lab/DataSafeOnes/9_blank_file.xlsx'
-        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
-        xlsx_upload_field.send_keys(wrong_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
+
+        # he goes back and tries again, but this time he uploads a file that holds an empty spreadsheet
+        self.upload_aged_salespeople_only('aged/lab/DataSafeOnes/9_blank_file.xlsx')
         # and this time the error message is different
         self.assertEqual(self.browser.find_element(By.ID, 'upload_status').text,
                          'The file has no data. Fix file and re-upload')
-        # he goes back and tries again
-        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
-        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
-        # this time he uploads an older file that does not contain the right headers
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        wrong_relative_path = 'aged/lab/DataSafeOnes/10_wrong_headers.xlsx'
-        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
-        xlsx_upload_field.send_keys(wrong_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
 
+        # he goes back and tries again, this time he uploads an older file that does not contain the right headers
+        self.upload_aged_salespeople_only('aged/lab/DataSafeOnes/10_wrong_headers.xlsx')
         # and this time the error message is different - telling him about the wrong headers
         self.assertTrue(self.browser.find_element(By.ID, 'upload_status').text.startswith("The file has the wrong headers."))
-        # he goes back and this time uploads a good file (containing just one salesperson - Mikimic)
-        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
-        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
-        # this time he uploads an older file that does not contain the right headers
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
 
+        # he goes back and this time uploads a good file (containing just one salesperson - Mikimic)
+        self.upload_aged_salespeople_only('aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx')
         # he checks that the file was uploaded successfully
         self.assertEqual(self.browser.find_element(By.ID, 'id_message').text, 'All accounts updated')
 
-        # he also looks in the database and checks for a few customers
+        # he also looks in the database and checks for a few customers that were in the xlsx file
+        my_customers_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx')
+        random_rows = my_customers_xlsx.sample(n=2)
+        print(random_rows.iloc[0]['Customer Name'], random_rows.iloc[0]['Customer Number'], random_rows.iloc[0]['Customer Care Agent'])
         self.assertTrue(Customers.objects.filter(
-            customer_name='Quantum Foods Engineering Ltd.',
-            customer_number=5421,
-            allocated_customer_service_rep=CustomerService.objects.filter(customer_service_rep='Reese Brown').get()
-            ).exists(), )
-        self.assertTrue(Customers.objects.filter(
-            customer_name='Dark Chocolate Dreams',
-            customer_number=1296,
+            customer_name=random_rows.iloc[0]['Customer Name'],
+            customer_number=random_rows.iloc[0]['Customer Number'],
             allocated_customer_service_rep=CustomerService.objects.filter(
-                customer_service_rep='Jamie Garcia').get(),
+                customer_service_rep=random_rows.iloc[0]['Customer Care Agent']).get()
             ).exists())
-
+        self.assertTrue(Customers.objects.filter(
+            customer_name=random_rows.iloc[1]['Customer Name'],
+            customer_number=random_rows.iloc[1]['Customer Number'],
+            allocated_customer_service_rep=CustomerService.objects.filter(
+                customer_service_rep=random_rows.iloc[1]['Customer Care Agent']).get()
+            ).exists())
 
     # the admin goes to upload the aged stock file
     def test_log_in_and_stock_file_upload_for_admin(self):
         # he logs in to his account
-        self.browser.get(self.live_server_url)
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Mikimic')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('adminpassword')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.log_in_account('Mikimic', 'adminpassword')
         upload_files_button = self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢')
         # He clicks on upload files button
         upload_files_button.click()
@@ -172,40 +280,21 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # and he is meet by an error message
         self.assertEqual(self.browser.find_element(By.ID, 'span_message').text,
                          'The file has more than one tab. Fix file and re-upload')
-        # he goes back
-        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
-        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
-        # he tries again, this time uploading a blank file
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        wrong_relative_path = 'aged/lab/DataSafeOnes/03_wrong_AgedStock_no_data.xlsx'
-        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
-        xlsx_upload_field.send_keys(wrong_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
+
+        # he goes back, and he tries again, this time uploading a blank file
+        self.upload_aged_stock_only('aged/lab/DataSafeOnes/03_wrong_AgedStock_no_data.xlsx')
         # and he is meet by an error message
         self.assertEqual(self.browser.find_element(By.ID, 'span_message').text,
                          'The file does not contain any data.')
-        # he goes back
-        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
-        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
-        # he tries again, this time uploading a file with the wrong headers
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        wrong_relative_path = 'aged/lab/DataSafeOnes/04_wrong_AgedStock_not_correct_headers.xlsx'
-        wrong_absolute_file_path = os.path.abspath(wrong_relative_path)
-        xlsx_upload_field.send_keys(wrong_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
+
+        # he goes back, and tries again, this time uploading a file with the wrong headers
+        self.upload_aged_stock_only('aged/lab/DataSafeOnes/04_wrong_AgedStock_not_correct_headers.xlsx')
         # and he is meet by an error message
         self.assertTrue(self.browser.find_element(By.ID, 'span_message').text.startswith(
             'The file requires the following headers:'))
 
-        # he goes back, and uploads the good file
-        self.browser.find_element(By.CLASS_NAME, 'a_menu').click()
-        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
-        # he tries again, this time uploading a file with the wrong headers
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
+        # he goes back, and uploads the correct file
+        self.upload_aged_stock_only('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
         # he is met by a message that says the file was uploaded successfully
         self.assertEqual(self.browser.find_element(By.ID, 'span_message').text, 'File uploaded')
 
@@ -238,6 +327,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         # uploaded by recording the creation date of the file
         date_file_was_created_db_list = CheckIfFileWasAlreadyUploaded.objects.values_list('data_creare_fisier',
                                                                                           flat=True)
+        right_absolute_file_path = os.path.abspath('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
         file = pd.ExcelFile(right_absolute_file_path, engine='openpyxl')
         workbook = file.book
         creation_date = str(workbook.properties.created)
@@ -252,27 +342,9 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
         This tests the available stocks page filtering and searching functionality
         """
         # populate database
-        self.browser.get(self.live_server_url)
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Mikimic')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('adminpassword')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
-        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
-        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
-        self.browser.get(self.live_server_url)
-        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
-        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
+        self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx',
+                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+
         # he goes to the page where all stock is displayed (userallstock), opened from 'Sell some stuff 🡢'
         self.browser.get(self.live_server_url)
         self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
@@ -314,7 +386,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase):
             self.assertEqual(itm.value_of_css_property('visibility'), 'visible')
 
 
-class UserOffers(StaticLiveServerTestCase):
+class UserOffers(StaticLiveServerTestCase, MixinFunctions):
     def setUp(self) -> None:
         # Define the directory where files will be downloaded
         self.download_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
@@ -335,53 +407,15 @@ class UserOffers(StaticLiveServerTestCase):
         self.browser.implicitly_wait(10)
 
         # Admin has an account
-        self.superuser = User.objects.create_superuser(
-            username='Mikimic',
-            first_name='Miki',
-            last_name='Mic',
-            password='adminpassword',
-            email='admin@example.com'
-        )
-
+        self.create_account('Miki', 'Mic')
         # He creates one account for Morgan who is a salesperson
-        self.regular_user = User.objects.create_user(
-            username='Morgan',
-            first_name='Morgan',
-            last_name='Davis',
-            password='password123',
-            email='morgan@example.com'
-        )
-        # And one account for Quinn who is an administration
-        self.superuser = User.objects.create_superuser(
-            username='Quinn',
-            first_name='Quinn',
-            last_name='Miller',
-            password='password123',
-            email='quinn@example.com'
-        )
+        self.create_account('Morgan', 'Davis', False)
+        # And one account for Quinn who is a manager
+        self.create_account('Quinn', 'Miller')
 
         # he uploads the xlsx files in the database
-        self.browser.get(self.live_server_url)
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Mikimic')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('adminpassword')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
-        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
-        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/17_just_two_sales_people.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
-        self.browser.get(self.live_server_url)
-        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
-        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
+        self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/17_just_two_sales_people.xlsx',
+                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
         self.browser.quit()  # quits firefox
@@ -425,22 +459,14 @@ class UserOffers(StaticLiveServerTestCase):
         """
 
         # Morgan logs in her account
-        self.browser.get(self.live_server_url + '/accounts/login/')
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Morgan')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('password123')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
-
+        self.log_in_account('Morgan', 'password123')
         # and she is greeted by 2 buttons
         self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'a_menu')), 2)
-
         # she clicks on the button taking her to the available products pages
         self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
 
         # she sees a product - MIS-019-865, and she wants to offer it to a client, so she clicks the "Make offer" button
         self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-019-865']]//a[@class='a_menu_make_offer']").click()
-
         # she lands on a page announcing her that she is about to make an offer for the MIS-019-865 product
         self.assertEqual(self.browser.find_element(By.CLASS_NAME, 'table_customer').text, 'MIS-019-865')
         # she notices all her customers are in the drop-down, so she checks a few
@@ -453,37 +479,19 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertFalse('Decadent Cocoa Fantasies' in customers_list)
         self.assertFalse('Rapid Foods Development Ltd.' in customers_list)
         self.assertFalse('Urban Utilities Healthcare Ltd.' in customers_list)
-        # she selects one of her customers
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text("Creamy Cocoa Bites")
-        # and makes the offer for 100 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('100')
-        # set the discount to 1
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('1')
-        # set the price to 1
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
+
+        # she makes an offer to one of her customers
+        self.make_offer('Creamy Cocoa Bites', '100', '1', '1', self.my_offer_date())
         # click the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                'postOne')
-        make_offer_button.click()
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # she checks that the offer was submitted to the database
         self.assertEqual(OffersLog.objects.count(), 1)
         stock = OffersLog.objects.all()[0]
-        self.assertEqual(stock.sales_rep_that_made_the_offer, User.objects.filter(first_name='Morgan', last_name='Davis').get())
-        self.assertEqual(stock.offered_stock, AvailableStock.objects.filter(available_product=Products.objects.filter(cod_material='MIS-019-865').get()).get())
+        self.assertEqual(stock.sales_rep_that_made_the_offer, User.objects.filter(first_name='Morgan',
+                                                                                  last_name='Davis').get())
+        self.assertEqual(stock.offered_stock,
+                         AvailableStock.objects.filter(available_product=Products.objects.filter(cod_material='MIS-019-865').get()).get())
         self.assertEqual(stock.offered_product, Products.objects.filter(cod_material='MIS-019-865').get())
         self.assertEqual(stock.customer_that_received_offer, Customers.objects.filter(customer_name='Creamy Cocoa Bites').get())
         self.assertEqual(stock.offered_sold_or_declined_quantity_kg, 100)
@@ -549,42 +557,22 @@ class UserOffers(StaticLiveServerTestCase):
         # she sees another stock, COM-008-310, 300kg available, and she wants to offer 200kg of it to another customer
         # she clicks on the button to make the offer
         self.browser.find_element(By.XPATH, "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']").click()
-        # and she is redirected to the page with the offer form
-        # she selects one of her customers
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
-        # and makes the offer for 200 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
+        self.make_offer('Advanced Orchards Finance Ltd.', '200', '2', '1', self.my_offer_date())
+
         # she sees that the form automatically caps her at the maximum available quantity, 300kg
         self.assertIn('300kg available', self.browser.find_elements(By.CLASS_NAME, 'label_input')[1].text)
         self.assertEqual(self.browser.find_element(By.NAME, 'quantity').get_attribute('max'), '300')
-        quantity_field.clear()
-        quantity_field.send_keys('200')
-        # set the discount to 2
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('2')
-        # set the price to 1
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
-        # however, before she gets to place the order, her colleague offers 200 out of the 300 kg to one of his customers
-        ## we will simulate this by directly decreasing the available stock by 200kg from the available quantity, without an offer
+
+        # however, before she gets to place the order, her colleague offers 200 out of the 300 kg to one of his
+        # customers
+        ## we will simulate this by directly decreasing the available stock by 200kg from the available quantity,
+        ## without an offer
         my_stock = AvailableStock.objects.filter(available_product=Products.objects.filter(cod_material='COM-008-310').get()).get()
         my_stock.available_quantity_in_kg -= 200
         my_stock.save()
 
         #she clicks the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
-
+        self.browser.find_element(By.NAME, 'postOne').click()
         # she notices she is redirected to a page with the title "Not enough stock"
         self.assertEqual(self.browser.title, 'Not enough stock')
         # she is meet by an announcement that there is not enough stock available because someone already
@@ -607,38 +595,15 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(self.browser.find_element(By.NAME, 'quantity').get_attribute('max'), '100')
 
         # she makes the offer for the remaining 100kg quantity
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
-        # and makes the offer for 100 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('100')
-        # set the discount to 2
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('2')
-        # set the price to 1
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
+        self.make_offer('Advanced Orchards Finance Ltd.', '100', '2', '1', self.my_offer_date())
         # however, before she gets to place the order, her colleague offers the remaining 100 kg
         ## we will simulate this by directly decreasing the available stock to zero, without an offer
         my_stock = AvailableStock.objects.filter(available_product=Products.objects.filter(
             cod_material='COM-008-310').get()).get()
         my_stock.available_quantity_in_kg = 0
         my_stock.save()
-
         #she clicks the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
-
+        self.browser.find_element(By.NAME, 'postOne').click()
         # she notices she is redirected to a page with the title "Not enough stock"
         self.assertEqual(self.browser.title, 'Not enough stock')
         # she is meet by an announcement that there is not enough stock available because someone already
@@ -660,30 +625,9 @@ class UserOffers(StaticLiveServerTestCase):
         ## and let Morgan go through with the original offer of 200 kg
         self.browser.find_elements(By.CLASS_NAME, 'a_menu')[0].click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
-        # and makes the offer for 200 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('200')
-        # set the discount to 2
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('2')
-        # set the price to 1
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
+        self.make_offer('Advanced Orchards Finance Ltd.', '200', '2', '1', self.my_offer_date())
         # she clicks the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # she is redirected to a page with the title "Great job!"
         self.assertEqual(self.browser.title, "Great job!")
@@ -749,7 +693,7 @@ class UserOffers(StaticLiveServerTestCase):
         # she checks the database to see that the offered quantity instance is marked as sold
         stock = OffersLog.objects.filter(offered_stock=AvailableStock.objects.filter(
             available_product=Products.objects.filter(cod_material='MIS-019-865').get()).get(),
-            customer_that_received_offer=Customers.objects.filter(customer_name="Creamy Cocoa Bites").get()).get()
+            customer_that_received_offer=Customers.objects.filter(customer_name='Creamy Cocoa Bites').get()).get()
         self.assertEqual(stock.offered_sold_or_declined_quantity_kg, 100)
         self.assertEqual(stock.offer_status, 'Sold')
         self.assertEqual(stock.date_of_outcome, datetime.datetime.today().date())
@@ -781,15 +725,7 @@ class UserOffers(StaticLiveServerTestCase):
         xpath = "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']"
         self.browser.find_element(By.XPATH, xpath).click()
         self.browser.find_element(By.NAME, 'changeOfferRedirect').click()
-        qty = self.browser.find_element(By.NAME, 'quantity')
-        qty.clear()
-        qty.send_keys('150')
-        disc = self.browser.find_element(By.NAME, 'discount_in_percent')
-        disc.clear()
-        disc.send_keys('2.50')
-        price = self.browser.find_element(By.NAME, 'price')
-        price.clear()
-        price.send_keys('1.50')
+        self.make_offer('Advanced Orchards Finance Ltd.', '150', '2.50', '1.50', self.my_offer_date())
         self.browser.find_element(By.CLASS_NAME, 'input_form_submit_offer').click()
 
         # she lands on the order confirmation page
@@ -871,24 +807,8 @@ class UserOffers(StaticLiveServerTestCase):
 
         # she goes and makes another offer for 230kg of the product FIL-002-400 which has 255kg available
         self.browser.find_element(By.XPATH, "//tr[td[text()='FIL-002-400']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Decadent Cocoa Bars')
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('230')
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('1')
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1')
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
-        make_offer_button = self.browser.find_element(By.NAME, 'postOne')
-        make_offer_button.click()
+        self.make_offer('Decadent Cocoa Bars', '230', '1', '1', self.my_offer_date())
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # the customer contacts her to ask for 10 kg more
         # so she goes to offers to change the offer
@@ -896,17 +816,7 @@ class UserOffers(StaticLiveServerTestCase):
         xpath = "//tr[td[text()='FIL-002-400']]//a[@class='a_menu_make_offer']"
         self.browser.find_element(By.XPATH, xpath).click()
         self.browser.find_element(By.NAME, 'changeOfferRedirect').click()
-        qty = self.browser.find_element(By.NAME, 'quantity')
-        qty.clear()
-        qty.send_keys('240')
-        disc = self.browser.find_element(By.NAME, 'discount_in_percent')
-        disc.clear()
-        disc.send_keys('1')
-        price = self.browser.find_element(By.NAME, 'price')
-        price.clear()
-        price.send_keys('1')
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
+        self.make_offer('Decadent Cocoa Bars', '240', '1', '1', self.my_offer_date())
 
         # however a colleague swoops in and offers 21kg to someone else, and she is left with 4kg, 6kg short
         # of what she needs
@@ -922,7 +832,7 @@ class UserOffers(StaticLiveServerTestCase):
         self.assertEqual(self.browser.find_element(By.ID, 'total_left_quantity').text, '234kg')
 
 
-class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
+class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
     def setUp(self) -> None:
         """
         Creates the webdriver object
@@ -936,99 +846,26 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
         self.browser = webdriver.Firefox()
         self.browser.implicitly_wait(10)
         # Admin has an account
-        self.superuser = User.objects.create_superuser(
-            username='Mikimic',
-            first_name='Miki',
-            last_name='Mic',
-            password='adminpassword',
-            email='admin@example.com'
-        )
-
+        self.create_account('Miki', 'Mic')
         # He creates one account for Morgan who is a salesperson
-        self.regular_user = User.objects.create_user(
-            username='Morgan',
-            first_name='Morgan',
-            last_name='Davis',
-            password='password123',
-            email='morgan@example.com'
-        )
-
+        self.create_account('Morgan', 'Davis', False)
         # He creates another account for Alex who is a salesperson
-        self.regular_user = User.objects.create_user(
-            username='Alex',
-            first_name='Alex',
-            last_name='Martinez',
-            password='password123',
-            email='alex@example.com'
-        )
-
-        # And one account for Quinn who is an administration
-        self.superuser = User.objects.create_superuser(
-            username='Quinn',
-            first_name='Quinn',
-            last_name='Miller',
-            password='password123',
-            email='quinn@example.com'
-        )
+        self.create_account('Alex', 'Martinez', False)
+        # And one account for Quinn who is a manager
+        self.create_account('Quinn', 'Miller')
 
         # he uploads the xlsx files in the database
-        self.browser.get(self.live_server_url)
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Mikimic')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('adminpassword')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
-        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
-        self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
-        self.browser.get(self.live_server_url)
-        self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
-        self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
-        xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
-        right_relative_path = 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx'
-        right_absolute_file_path = os.path.abspath(right_relative_path)
-        xlsx_upload_field.send_keys(right_absolute_file_path)
-        self.browser.find_element(By.ID, 'id_submit_file').click()
-
+        self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx',
+                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
         # Morgan logs in her account
-        self.browser.get(self.live_server_url + '/accounts/login/')
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Morgan')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('password123')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.log_in_account('Morgan', 'password123')
 
         # she navigates to her account, and she makes an offer for 100kg MIS-019-865
         self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-019-865']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text("Creamy Cocoa Bites")
-        # and makes the offer for 100 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('100')
-        # set the discount to 1
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('1')
-        # set the price to 1
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
+        self.make_offer('Creamy Cocoa Bites', '100', '1', '1', self.my_offer_date())
         # click the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # the offer is accepted, so she marks it sold
         self.browser.find_element(By.LINK_TEXT, 'My offers').click()
@@ -1038,30 +875,9 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
         # she goes back to make another offer
         self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='COM-008-310']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Advanced Orchards Finance Ltd.')
-        # and makes the offer for 200 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('200')
-        # set the discount to 2
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('2')
-        # set the price to 1
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
+        self.make_offer('Advanced Orchards Finance Ltd.', '200', '2', '1', self.my_offer_date())
         # she clicks the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # the offer is rejected so she marks it declined
         self.browser.find_element(By.LINK_TEXT, 'My offers').click()
@@ -1071,66 +887,19 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
         # she goes back and makes another offer
         self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='FIL-002-400']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Fine Herbs')
-        # and makes the offer for 25 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('25')
-        # set the discount to 2.5
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('2.5')
-        # set the price to 1.5
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1.5')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
+        self.make_offer('Fine Herbs', '25', '2.5', '1.5', self.my_offer_date())
         # she clicks the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # Alex logs in his account
-        self.browser.get(self.live_server_url + '/accounts/login/')
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Alex')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('password123')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.log_in_account('Alex', 'password123')
 
         # he navigates to her account, and she makes an offer for 75kg MIS-006-402
         self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='MIS-006-402']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text("Decadent Chocolate Treats")
-        # and makes the offer for 75 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('75')
-        # set the discount to 1
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('1')
-        # set the price to 2
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('2')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-05-28'
-        date_field.clear()
-        date_field.send_keys(today_date)
+        self.make_offer('Decadent Chocolate Treats', '75', '1', '2', self.my_offer_date())
         # click the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # the offer is accepted, so he marks it sold
         self.browser.find_element(By.LINK_TEXT, 'My offers').click()
@@ -1140,30 +909,8 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
         # he goes back to make another offer
         self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='VEN-002-873']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Polar Resources Industries Ltd.')
-        # and makes the offer for 2 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('2')
-        # set the discount to 5
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('5')
-        # set the price to 10
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('10')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-06-03'
-        date_field.clear()
-        date_field.send_keys(today_date)
-        # she clicks the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
+        self.make_offer('Polar Resources Industries Ltd.', '2', '5', '10', self.my_offer_date(False))
+        self.browser.find_element(By.NAME, 'postOne').click()
 
         # the offer is rejected so he marks it declined
         self.browser.find_element(By.LINK_TEXT, 'My offers').click()
@@ -1173,42 +920,16 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase):
         # he goes back and makes another offer
         self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='COM-005-872']]//a[@class='a_menu_make_offer']").click()
-        select_element = self.browser.find_element(By.NAME, "customer")
-        select = Select(select_element)
-        select.select_by_visible_text('Vital Supplies Engineering Ltd.')
-        # and makes the offer for 100 kg
-        quantity_field = self.browser.find_element(By.NAME, 'quantity')
-        quantity_field.clear()
-        quantity_field.send_keys('100')
-        # set the discount to 1.5
-        discount_field = self.browser.find_element(By.NAME, 'discount_in_percent')
-        discount_field.clear()
-        discount_field.send_keys('1.5')
-        # set the price to 1.5
-        price_field = self.browser.find_element(By.NAME, 'price')
-        price_field.clear()
-        price_field.send_keys('1.5')
-        # set the date to today
-        date_field = self.browser.find_element(By.NAME, 'date_of_offer')
-        today_date = '2024-06-03'
-        date_field.clear()
-        date_field.send_keys(today_date)
+        self.make_offer('Vital Supplies Engineering Ltd.', '100', '1.5', '1.5', self.my_offer_date(False))
         # she clicks the button to make the offer
-        make_offer_button = self.browser.find_element(By.NAME,
-                                                      'postOne')
-        make_offer_button.click()
+        self.browser.find_element(By.NAME, 'postOne').click()
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
         self.browser.quit()  # quits firefox
 
     def test_manager_checks_reports(self):
         # Quinn logs in into his account - he is a manager
-        self.browser.get(self.live_server_url + '/accounts/login/')
-        username_input = self.browser.find_element(By.ID, 'id_username')
-        username_input.send_keys('Quinn')
-        password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys('password123')
-        self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
+        self.log_in_account('Quinn', 'password123')
 
         # He navigates to its reports page - only available to superusers - the page title is Reports
         self.browser.find_element(By.LINK_TEXT, 'Reports').click()
