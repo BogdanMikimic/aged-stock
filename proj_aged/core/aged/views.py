@@ -525,9 +525,11 @@ def stock_help(request):
     return render(request, 'aged/help.html')
 
 
-
+@login_required
+@user_passes_test(lambda u: u.get_username() == 'Testbot')
 def task1(request):
     """
+    Requires a superuser called Testbot
     Removes expired PRODUCTS from all stock table
     Sets offers that contain expired PRODUCTS stock_expired field to True
     Removes expired OFFERS and moves quantity back in available stock

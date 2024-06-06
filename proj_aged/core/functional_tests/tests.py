@@ -995,6 +995,32 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
             self.assertEqual(row.find_element(By.CLASS_NAME, 'table_status_offered').text, 'Offered')
             self.assertEqual(row.find_elements(By.TAG_NAME, 'td')[7].text, 'May 28, 2024')
 
+class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
+    # Mikimic, as a superuser, had set up a page that can be accessed by a bot account
+    def setUp(self) -> None:
+        self.browser = webdriver.Firefox()
+        self.browser.implicitly_wait(10)
+        # he creates an account for himeslf
+        self.create_account('Miki', 'Mic')
+        # and he creates an account for the bot that has to be named Testbot
+        self.create_account('Testbot', 'Bot')
+        # he creates the other accounts required in order to be able to upload his salespeople file
+        self.create_account('Morgan', 'Davis', False)
+        self.create_account('Alex', 'Martinez', False)
+        self.create_account('Quinn', 'Miller')
+
+        # he uploads the xlsx files in the database
+        self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx',
+                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+        # he also keeps the xlsx handy
+        self.aged_stock_xlsx_dataframe = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+
+
+    def tearDown(self) -> None:
+        self.browser.quit()
+
+    def test_expired_offers_are_removed(self):
+        pass
 
 
 
