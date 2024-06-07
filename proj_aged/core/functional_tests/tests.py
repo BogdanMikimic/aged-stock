@@ -1,3 +1,5 @@
+import random
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase # this a  class provided by Django for tests
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
@@ -42,6 +44,9 @@ Next, MixinFunctions.my_offer_date returns 2 dates - a "present" date and "futur
 It will make sense for you to change those to a more appropriate dates that represent the present/future.  
 '''
 print(message)
+
+mikimic_admin_password = 'adminpassword'
+user_password = 'password123'
 
 class MixinFunctions:
     def return_xlsx_dataframe(self, relative_path_to_xlsx: str) -> pd.DataFrame:
@@ -96,7 +101,7 @@ class MixinFunctions:
                     username='Mikimic',
                     first_name='Miki',
                     last_name='Mic',
-                    password='adminpassword',
+                    password=mikimic_admin_password,
                     email='admin@example.com'
                     )
             else:
@@ -104,7 +109,7 @@ class MixinFunctions:
                     username=first_name,
                     first_name=first_name,
                     last_name=last_name,
-                    password='password123',
+                    password=user_password,
                     email=f'{first_name}@example.com'
                 )
         else:
@@ -112,11 +117,11 @@ class MixinFunctions:
                 username=first_name,
                 first_name=first_name,
                 last_name=last_name,
-                password='password123',
+                password=user_password,
                 email=f'{first_name}@example.com'
             )
 
-    def log_in_account(self, username: str, password: str) -> None:
+    def log_in_account(self, username: str) -> None:
         """
         Logs user or superuser in its account
         """
@@ -124,11 +129,14 @@ class MixinFunctions:
         username_input = self.browser.find_element(By.ID, 'id_username')
         username_input.send_keys(username)
         password_input = self.browser.find_element(By.ID, 'id_password')
-        password_input.send_keys(password)
+        if username == 'Mikimic':
+            password_input.send_keys(mikimic_admin_password)
+        else:
+            password_input.send_keys(user_password)
         self.browser.find_element(By.CLASS_NAME, 'input_form_submit').click()
 
     def upload_aged_stock_only(self, relative_path_to_aged_stock_xlsx) -> None:
-        self.log_in_account('Mikimic', 'adminpassword')
+        self.log_in_account('Mikimic')
         self.browser.get(self.live_server_url)
         self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
         self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
@@ -139,7 +147,7 @@ class MixinFunctions:
         self.browser.find_element(By.ID, 'id_submit_file').click()
 
     def upload_aged_salespeople_only(self, relative_path_to_aged_stock_xlsx) -> None:
-        self.log_in_account('Mikimic', 'adminpassword')
+        self.log_in_account('Mikimic')
         self.browser.get(self.live_server_url)
         self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
         self.browser.find_element(By.LINK_TEXT, '(1) Salespeople, customer care agents and customers').click()
@@ -205,7 +213,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
 
     # And logs into his account - which differs from anyone else's because it has an "Upload Files ->" button
     def test_log_in_and_customer_file_upload_for_admin(self):
-        self.log_in_account('Mikimic', 'adminpassword')
+        self.log_in_account('Mikimic')
         upload_files_button = self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢')
         self.assertIsNotNone(upload_files_button)
         # He clicks on upload files button
@@ -261,14 +269,14 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
     # the admin goes to upload the aged stock file
     def test_log_in_and_stock_file_upload_for_admin(self):
         # he logs in to his account
-        self.log_in_account('Mikimic', 'adminpassword')
+        self.log_in_account('Mikimic')
         upload_files_button = self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢')
         # He clicks on upload files button
         upload_files_button.click()
         # and then he clicks on the aged stock upload
         self.browser.find_element(By.LINK_TEXT, '(3) Aged stock').click()
         # he is greeted by a message that contains the word 'aged stock'
-        self.assertEqual(self.browser.find_element(By.ID,'span_aged_stock').text, 'aged stock')
+        self.assertEqual(self.browser.find_element(By.ID, 'span_aged_stock').text, 'aged stock')
         # he navigates to the upload field and browse for a file to upload
         # unfortunately he uploads the wrong file that has more than one tab
         xlsx_upload_field = self.browser.find_element(By.ID, 'id_file_field')
@@ -460,7 +468,7 @@ class UserOffers(StaticLiveServerTestCase, MixinFunctions):
         """
 
         # Morgan logs in her account
-        self.log_in_account('Morgan', 'password123')
+        self.log_in_account('Morgan')
         # and she is greeted by 2 buttons
         self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'a_menu')), 2)
         # she clicks on the button taking her to the available products pages
@@ -859,7 +867,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx',
                                                                  'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
         # Morgan logs in her account
-        self.log_in_account('Morgan', 'password123')
+        self.log_in_account('Morgan')
 
         # she navigates to her account, and she makes an offer for 100kg MIS-019-865
         self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
@@ -893,7 +901,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         self.browser.find_element(By.NAME, 'postOne').click()
 
         # Alex logs in his account
-        self.log_in_account('Alex', 'password123')
+        self.log_in_account('Alex')
 
         # he navigates to her account, and she makes an offer for 75kg MIS-006-402
         self.browser.find_element(By.LINK_TEXT, 'Sell some stuff 🡢').click()
@@ -930,7 +938,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
 
     def test_manager_checks_reports(self):
         # Quinn logs in into his account - he is a manager
-        self.log_in_account('Quinn', 'password123')
+        self.log_in_account('Quinn')
 
         # He navigates to its reports page - only available to superusers - the page title is Reports
         self.browser.find_element(By.LINK_TEXT, 'Reports').click()
@@ -1000,7 +1008,7 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
     def setUp(self) -> None:
         self.browser = webdriver.Firefox()
         self.browser.implicitly_wait(10)
-        # he creates an account for himeslf
+        # he creates an account for himself
         self.create_account('Miki', 'Mic')
         # and he creates an account for the bot that has to be named Testbot
         self.create_account('Testbot', 'Bot')
@@ -1020,31 +1028,54 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
         self.browser.quit()
 
     def test_expired_offers_are_removed(self):
-        pass
+        # he asks Morgan to make 4 offers
+        # he selects 4 stocks at random form the xlsx file
+        my_stocks_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+        random_4_stock_rows = my_stocks_xlsx.sample(n=5)
+        # and he asks Morgan to make some offers for 4 of them
+        # Morgan logs in her account
+        self.log_in_account('Morgan')
+
+        # she selects 4 customers of hers (from the xlsx)
+        all_customers_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx')
+        three_customers_list = list()
+        for i in range(len(all_customers_xlsx)):
+            if all_customers_xlsx.iloc[i]['Sales Rep'].split(' ')[0] == 'Morgan':
+                if len(three_customers_list) < 4:
+                    three_customers_list.append(all_customers_xlsx.iloc[i]['Customer Name'])
+                else:
+                    break
+
+        # she makes 4 offers
+        for j in range(4):
+            # she navigates to the page with available stock
+            self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
+            # she chose the first/next material from the 3 in the materials list
+            material = random_4_stock_rows.iloc[j]['Material']
+            # she clicks the button to make an offer for the selected material
+            self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
+            # she makes an offer for the first/next material addressed to her first/next customer in her list
+            # she makes sre that the offered quantity is in the selected available range
+            self.make_offer(three_customers_list[j],
+                            str(random.randrange(int(random_4_stock_rows.iloc[j]['Quantity']))),
+                            '1.5',
+                            '1.5',
+                            self.my_offer_date(False))
+            # she clicks the button to make the offer
+            self.browser.find_element(By.NAME, 'postOne').click()
+
+        # she navigates to the page with her offers
+        self.browser.find_element(By.LINK_TEXT, 'My offers').click()
+        # and check that all 4 offers are registered
+        self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'table_sku')), 4)
+
+        # she marks the first one as sold
+
+
+        # she marks the second one as declined
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        # self.make_offer(random_rows.iloc[0][''])
 
 
