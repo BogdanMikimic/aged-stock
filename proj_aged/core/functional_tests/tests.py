@@ -1,5 +1,4 @@
 import random
-
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase # this a  class provided by Django for tests
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
@@ -49,20 +48,40 @@ mikimic_admin_password = 'adminpassword'
 user_password = 'password123'
 
 class MixinFunctions:
+
+    def date_string_with_month_name(self, date_in_string_format_with_dashes: str) -> str:
+        """
+        Takes in the date in string format YYYY-MM-DD format (for example: '2024-05-28').
+        Converts the string date into a date-time object,
+        and returns the date in string format Month by name day, year (for example 'May 12, 2024')
+
+        :param date_in_string_format_with_dashes: A date string in 'YYYY-MM-DD' format.
+        :return: The date formatted as 'Month day, year'.
+        """
+        date_in_date_format = date_to_string_or_string_to_date(date_in_string_format_with_dashes)
+        return f'{date_in_date_format.strftime("%B")} {str(date_in_date_format.day)}, {str(date_in_date_format.year)}'
+
     def return_xlsx_dataframe(self, relative_path_to_xlsx: str) -> pd.DataFrame:
         right_absolute_file_path = os.path.abspath(relative_path_to_xlsx)
         return return_data_frame_without_empty_rows_and_cols(right_absolute_file_path)
 
-    def my_offer_date(self, is_present=True) -> str:
+    def my_offer_date(self, add_or_subtract_days=0, return_date_as_string=True) -> str | datetime.date:
         """
-        This function is used to return dates for the creation of offers
-        I used 2 type of dates in the code for the offers, a 'present' one, and a 'future' one
-        They were used to check different filters and that data registered correctly in the database.
+        This function is used to return dates either as strings or as dates.
+        It allows to search for dates in the past or future.
+        By default, it returns today's date as string in the format YYYY-MM-DD.
+
+        :param add_or_subtract_days: The number of days to add or subtract
+        :param return_date_as_string: If True, returns the date in string format, else in dates.
+        :return: The date formatted as 'Month day, year'.
         """
-        if is_present:
-            return '2024-05-28'
+
+        required_date_as_date = datetime.date.today() + datetime.timedelta(days=add_or_subtract_days)
+        if return_date_as_string:
+            required_date_str = date_to_string_or_string_to_date(required_date_as_date)
+            return required_date_str
         else:
-            return '2024-06-03'
+            return required_date_as_date
 
     def make_offer(self,
                    customer_name: str,
@@ -89,7 +108,7 @@ class MixinFunctions:
         price_field = self.browser.find_element(By.NAME, 'price')
         price_field.clear()
         price_field.send_keys(price_per_kg)
-        # offer date YYYY-MM-DD format -> '2024-05-28'
+        # offer date YYYY-MM-DD format for example '2024-05-28'
         date_field = self.browser.find_element(By.NAME, 'date_of_offer')
         date_field.clear()
         date_field.send_keys(date_of_offer)
@@ -507,8 +526,8 @@ class UserOffers(StaticLiveServerTestCase, MixinFunctions):
         self.assertEqual(stock.offer_status, 'Offered')
         self.assertEqual(stock.discount_offered_percents, 1.00)
         self.assertEqual(stock.price_per_kg_offered, 1.00)
-        self.assertEqual(stock.date_of_offer, datetime.date(2024, 5, 28))
-        self.assertEqual(stock.expiration_date_of_offer, datetime.date(2024, 6, 4))
+        self.assertEqual(stock.date_of_offer, self.my_offer_date(return_date_as_string=False))
+        self.assertEqual(stock.expiration_date_of_offer, self.my_offer_date(add_or_subtract_days=7, return_date_as_string=False))
         self.assertEqual(stock.date_of_outcome, None)
         self.assertEqual(stock.stock_expired, False)
 
@@ -552,12 +571,10 @@ class UserOffers(StaticLiveServerTestCase, MixinFunctions):
         # she un ticks the "under offer" tick-box
         self.browser.find_element(By.ID, 'underOfferCB').click()
         # now she can see the offer that she made appearing as a separate line
-        ## I am removing the zeros from day and month so 04 becomes 4
-        exp_date = f'{stock.expiration_date_of_offer.strftime("%B")} {stock.expiration_date_of_offer.day}, {stock.expiration_date_of_offer.year}'
+        exp_date = self.date_string_with_month_name(date_to_string_or_string_to_date(stock.expiration_date_of_offer))
         expiration_column = f" Under offer by {stock.sales_rep_that_made_the_offer} expires: {exp_date} "
-        ## this creates a query that looks for the table row that condais 3 <td> elements.
+        ## this creates a query that looks for the table row that contains 3 <td> elements.
         ## each with the correct text data
-        #  and ;  and td[text()='Under offer by Morgan expires: June 4, 2024']
         xpath = (
             f"//tr[@class='tr_offered' and td[text()='MIS-019-865'] and td[text()='100 kg'] and td[text()='{expiration_column}']]"
         )
@@ -668,10 +685,10 @@ class UserOffers(StaticLiveServerTestCase, MixinFunctions):
         self.assertEqual(first_offer_data_td[3].text, '1.00')
         # she checks that the price per kilo is 1.00
         self.assertEqual(first_offer_data_td[4].text, '1.00')
-        # she checks that the date of the offer is correct May 28, 2024
-        self.assertEqual(first_offer_data_td[5].text, 'May 28, 2024')
-        # and she checks that the expiration date is correct June 4, 2024
-        self.assertEqual(first_offer_data_td[6].text, 'June 4, 2024')
+        # she checks that the date of the offer is correct - today
+        self.assertEqual(first_offer_data_td[5].text, self.date_string_with_month_name(self.my_offer_date()))
+        # and she checks that the expiration date is correct 7 days from now
+        self.assertEqual(first_offer_data_td[6].text, self.date_string_with_month_name(self.my_offer_date(add_or_subtract_days=7)))
         # she checks that the date of the outcome is None
         self.assertEqual(first_offer_data_td[7].text, 'None')
         # she also checks that the offer is rightfully labeled as offered
@@ -896,7 +913,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         # she goes back and makes another offer
         self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='FIL-002-400']]//a[@class='a_menu_make_offer']").click()
-        self.make_offer('Fine Herbs', '25', '2.5', '1.5', self.my_offer_date())
+        self.make_offer('Fine Herbs', '25', '2.5', '1.5', self.my_offer_date(add_or_subtract_days=-3))
         # she clicks the button to make the offer
         self.browser.find_element(By.NAME, 'postOne').click()
 
@@ -918,7 +935,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         # he goes back to make another offer
         self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='VEN-002-873']]//a[@class='a_menu_make_offer']").click()
-        self.make_offer('Polar Resources Industries Ltd.', '2', '5', '10', self.my_offer_date(False))
+        self.make_offer('Polar Resources Industries Ltd.', '2', '5', '10', self.my_offer_date())
         self.browser.find_element(By.NAME, 'postOne').click()
 
         # the offer is rejected so he marks it declined
@@ -929,7 +946,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         # he goes back and makes another offer
         self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
         self.browser.find_element(By.XPATH, "//tr[td[text()='COM-005-872']]//a[@class='a_menu_make_offer']").click()
-        self.make_offer('Vital Supplies Engineering Ltd.', '100', '1.5', '1.5', self.my_offer_date(False))
+        self.make_offer('Vital Supplies Engineering Ltd.', '100', '1.5', '1.5', self.my_offer_date())
         # she clicks the button to make the offer
         self.browser.find_element(By.NAME, 'postOne').click()
 
@@ -979,16 +996,16 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         self.browser.find_element(By.CLASS_NAME, 'input_submit_superuser_form').click()
         # he now sees that there are 2 rows available to him
         self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 3)  # one is with the table header
-        # he looks at the third filter, and selects only under offer offers made between the 28th and 29th of May
-        # he selects the date of 28 May for the start date
+        # he looks at the third filter, and selects only under offer offers made between the three and two days ago
+        # he selects three days ago for the start date for the filter
         start_date_filter_field = self.browser.find_element(By.ID, 'start')
-        start_date = '2024-05-28'
+        start_date = self.my_offer_date(add_or_subtract_days=-3)
         start_date_filter_field.clear()
         start_date_filter_field.send_keys(start_date)
 
-        # he selects the date of 29 May for the start date
+        # he selects two days ago as the end date for the filter
         end_date_filter_field = self.browser.find_element(By.ID, 'stop')
-        end_date = '2024-05-29'
+        end_date = self.my_offer_date(add_or_subtract_days=-2)
         end_date_filter_field.clear()
         end_date_filter_field.send_keys(end_date)
 
@@ -996,12 +1013,12 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         self.browser.find_element(By.CLASS_NAME, 'input_submit_superuser_form').click()
         # he now sees only one person in the list
         self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 2)  # one is with the table header
-        # he checks that the offer is made by Morgan, is offered and the offer date is the 28th of May
+        # he checks that the offer is made by Morgan, its status is 'Offered' and the offer date is 3 days ago'
         table_rows = self.browser.find_elements(By.TAG_NAME, 'tr')
         for row in table_rows[1:]:
             self.assertEqual(row.find_element(By.CLASS_NAME, 'table_sales_rep').text, 'Morgan')
             self.assertEqual(row.find_element(By.CLASS_NAME, 'table_status_offered').text, 'Offered')
-            self.assertEqual(row.find_elements(By.TAG_NAME, 'td')[7].text, 'May 28, 2024')
+            self.assertEqual(row.find_elements(By.TAG_NAME, 'td')[7].text, self.date_string_with_month_name(start_date))
 
 class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
     # Mikimic, as a superuser, had set up a page that can be accessed by a bot account
@@ -1055,12 +1072,12 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
             # she clicks the button to make an offer for the selected material
             self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
             # she makes an offer for the first/next material addressed to her first/next customer in her list
-            # she makes sre that the offered quantity is in the selected available range
+            # she makes sure that the offered quantity is in the selected available range
             self.make_offer(three_customers_list[j],
                             str(random.randrange(int(random_4_stock_rows.iloc[j]['Quantity']))),
                             '1.5',
                             '1.5',
-                            self.my_offer_date(False))
+                            self.my_offer_date())
             # she clicks the button to make the offer
             self.browser.find_element(By.NAME, 'postOne').click()
 

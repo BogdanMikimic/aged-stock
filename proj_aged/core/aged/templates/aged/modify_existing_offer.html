@@ -20,8 +20,8 @@
     </select>
     <br>
     <br>
-    <label class="label_input">You initially offered <span class="table_sku" > {{ offer.offered_sold_or_declined_quantity_kg }}kg </span> (out of <span class="table_sku" id="total_left_quantity">{{ wholeQuantity }}kg </span> avalilable)</label>
-    <input class="input_offer" type="number" name="quantity" min="0" max="{{ wholeQuantity }}" step="1" value="{{ offer.offered_sold_or_declined_quantity_kg }}" required>
+    <label class="label_input">You initially offered <span class="table_sku" > {{ offer.offered_sold_or_declined_quantity_kg }}kg </span> (out of <span class="table_sku" id="total_left_quantity">{{ whole_quantity }}kg </span> avalilable)</label>
+    <input class="input_offer" type="number" name="quantity" min="0" max="{{ whole_quantity }}" step="1" value="{{ offer.offered_sold_or_declined_quantity_kg }}" required>
     <br>
     <br>
     <label class="label_input">At a <span class="table_status_offered">discount</span> of <span class="table_status_offered">{{offer.discount_offered_percents}}% </span></label>
@@ -34,12 +34,12 @@
     <br>
     <label class="label_input">On the date <span class="table_date"> {{ offer.date_of_offer }}</span></label>
     <br>
-    <input class="input_offer" type="date" name="date_of_offer" value="{{ dateOfOfferString }}" required>
+    <input class="input_offer" type="date" name="date_of_offer" value="{{ date_of_offer_string }}" required>
     <br>
     <br>
     <input class="input_form_submit_offer" type="submit" value="Modify the offer 🡢" required>
   </form>
-  <a class="a_menu" href="{% url 'userseallstock' %}">🡠 To available stock</a>
+  <a class="a_menu" href="{% url 'all_available_stock' %}">🡠 To available stock</a>
   <a class="a_menu" href="{% url 'home' %}">🡠 Back Home</a>
   {% endblock %}
 

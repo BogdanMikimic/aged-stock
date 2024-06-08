@@ -15,12 +15,12 @@
     <a class="a_nav" href="{% url 'home' %}" >Home</a>
     <p class="p_nav">|</p>
     {% if request.user.is_superuser %}
-    <a class="a_nav" href="{% url 'superuserreports' %}" >Reports</a>
+    <a class="a_nav" href="{% url 'superuser_reports' %}" >Reports</a>
     <p class="p_nav">|</p>
     {% endif %}
-    <a class="a_nav" href="{% url 'userseallstock' %}" >Available stock</a>
+    <a class="a_nav" href="{% url 'all_available_stock' %}" >Available stock</a>
     <p class="p_nav">|</p>
-    <a class="a_nav" href="{% url 'userpendingoffers' %}" >My offers</a>
+    <a class="a_nav" href="{% url 'existing_offers' %}" >My offers</a>
     <p class="p_nav">|</p>
 
     <a class="a_nav" href="{% url 'help' %}" >Help</a>

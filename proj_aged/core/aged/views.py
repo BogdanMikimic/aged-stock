@@ -15,7 +15,6 @@ from .lab.Aged_stock import check_if_file_was_already_uploaded,\
       put_available_stock_in_the_database
 
 from .lab.writePdfOffer import PdfOfferCreator
-from .lab.AgedMailSender import MailSender
 import datetime
 import textwrap
 
@@ -26,35 +25,34 @@ from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     check_headers,\
     check_salespeople_in_database,\
     create_customer_care_accounts, \
-    create_customer_accounts,\
-    do_not_use_in_production_automatic_accounts_creation
+    create_customer_accounts
 
 # homepage
 @login_required
 def homepage(request):
     if request.user.is_superuser:
-        return render(request, 'aged/superuserhome.html')
+        return render(request, 'aged/superuser_home.html')
     else:
-        return render(request, 'aged/userhome.html')
+        return render(request, 'aged/user_home.html')
 
 
 # --------- uploading xlsx files in the database
 @user_passes_test(lambda u: u.get_username() == 'Mikimic')
-def fileupload(request):
-    return render(request, 'aged/fileupload.html')
+def upload_files(request):
+    return render(request, 'aged/upload_files.html')
 
 
 # this it is only available to me (file to upload salespeople, customer care people and company names .xlsx file)
 @login_required
 @user_passes_test(lambda u: u.get_username() == 'Mikimic')
-def salespeopleupload(request):
+def upload_file_with_sales_people(request):
     """
     Parses the xlsx and notifies if User accounts have to be created or deleted
     Creates, deletes customer care accounts
     Creates/retires customer accounts
     """
     if request.method == 'GET':
-        return render(request, 'aged/salespeopleupload.html')
+        return render(request, 'aged/sales_people_upload.html')
     elif request.method == 'POST':
         # upload xlsx file with accounts and sales people
         file_name = 'people.xlsx'
@@ -67,13 +65,13 @@ def salespeopleupload(request):
         if not only_one_tab_check(file_name_with_path):
             file_object.delete(file_name)
             upload_status = 'The file has more than one tab. Fix file and re-upload'
-            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+            return render(request, 'aged/sales_people_upload.html', {'upload_status': upload_status})
 
         # check spreadsheet not blank
         if not check_spreadsheet_contains_data(file_name_with_path):
             file_object.delete(file_name)
             upload_status = 'The file has no data. Fix file and re-upload'
-            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+            return render(request, 'aged/sales_people_upload.html', {'upload_status': upload_status})
 
         # check that the spreadsheet contains the expected headers
         dataframe = return_data_frame_without_empty_rows_and_cols(file_name_with_path)
@@ -81,7 +79,7 @@ def salespeopleupload(request):
         if not check_headers(expected_headers, dataframe):
             file_object.delete(file_name)
             upload_status = f'The file has the wrong headers. The expected headers are: {" ".join(expected_headers)}. Fix file and re-upload'
-            return render(request, 'aged/salespeopleupload.html', {'upload_status': upload_status})
+            return render(request, 'aged/sales_people_upload.html', {'upload_status': upload_status})
 
         # delete the xlsx file from database
         file_object.delete(file_name)
@@ -107,21 +105,22 @@ def salespeopleupload(request):
 
             # do_not_use_in_production_automatic_accounts_creation(dataframe)
 
-            return render(request, 'aged/salespeopleupload.html', {'message_create': message_create,
-                                                                   'message_delete': message_delete,
-                                                                   'accounts_to_create': accounts_to_create,
-                                                                   'accounts_to_delete': accounts_to_delete,
-                                                                   })
+            return render(request, 'aged/sales_people_upload.html',
+                           {'message_create': message_create,
+                                   'message_delete': message_delete,
+                                   'accounts_to_create': accounts_to_create,
+                                   'accounts_to_delete': accounts_to_delete,
+                                  })
         else:
             create_customer_care_accounts(dataframe)
             create_customer_accounts(dataframe)
             message = 'All accounts updated'
-            return render(request, 'aged/salespeopleupload.html', {'message': message})
+            return render(request, 'aged/sales_people_upload.html', {'message': message})
 
 
 @login_required
 @user_passes_test(lambda u: u.get_username() == 'Mikimic')
-def agedstockupload(request):
+def upload_file_with_aged_stock(request):
     """
     Performs checks on the xlsx file containing stock data
     Checks file only has one tab
@@ -133,7 +132,7 @@ def agedstockupload(request):
 
     """
     if request.method == 'GET':
-        return render(request, 'aged/agedstockupload.html')
+        return render(request, 'aged/aged_stock_upload.html')
     elif request.method == 'POST':
         # upload file, read content, delete file - return content as dict
         file_name = 'stock.xlsx'
@@ -145,13 +144,13 @@ def agedstockupload(request):
         if not only_one_tab_check(f'media/{file_name}'):
             message = 'The file has more than one tab. Fix file and re-upload'
             file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
+            return render(request, 'aged/aged_stock_upload.html', {'message': message})
 
         # check if file contains data
         if not check_spreadsheet_contains_data(f'media/{file_name}'):
             message = 'The file does not contain any data.'
             file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
+            return render(request, 'aged/aged_stock_upload.html', {'message': message})
 
         # return the dataframe
         dataframe = return_data_frame_without_empty_rows_and_cols(f'media/{file_name}')
@@ -161,13 +160,13 @@ def agedstockupload(request):
         if not check_headers(requested_headers, dataframe):
             message = f'The file requires the following headers: {", ".join(requested_headers)}'
             file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
+            return render(request, 'aged/aged_stock_upload.html', {'message': message})
 
         # check if file was already uploaded
         if check_if_file_was_already_uploaded(f'media/{file_name}'):
             message = 'This file was already uploaded'
             file_object.delete(file_name)
-            return render(request, 'aged/agedstockupload.html', {'message': message})
+            return render(request, 'aged/aged_stock_upload.html', {'message': message})
 
         # add new brands into the database
         put_brand_into_db(dataframe)
@@ -182,12 +181,12 @@ def agedstockupload(request):
 
         file_object.delete(file_name)
         message = 'File uploaded'
-        return render(request, 'aged/agedstockupload.html', {'message': message})
+        return render(request, 'aged/aged_stock_upload.html', {'message': message})
 
 
 # --------------- users/superusers check available stock
 @login_required
-def userseallstock(request):
+def all_available_stock(request):
     """"
     Shows all available stock page
     Retrieve all stock that was offered or sold
@@ -197,28 +196,28 @@ def userseallstock(request):
     # retrieve offers that are "offered" or "sold", and which are not expired
     touched_stock = OffersLog.objects.filter(stock_expired=False)
     # retrieve all available stock
-    free_stock_all = AvailableStock.objects.all().order_by('expiration_date')
+    all_available_stock = AvailableStock.objects.all().order_by('expiration_date')
     # push all materials to template to use with custom tags in HTML and JS for filtering
     # each material that is available in free and touched stock, is pushed to the table
     material = set()
-    materiale = set()
+    materials = set()
     for itm in touched_stock:
         material.add(itm.offered_product.product_material_type.material_type)
-        materiale.add(itm.offered_product.product_material_type)
-    for itm in free_stock_all:
+        materials.add(itm.offered_product.product_material_type)
+    for itm in all_available_stock:
         material.add(itm.available_product.product_material_type.material_type)
-        materiale.add(itm.available_product.product_material_type)
+        materials.add(itm.available_product.product_material_type)
     material_csv = ",".join(material)
-    return render(request, 'aged/userseallstock.html',
-                  {'freeStockAll': free_stock_all,
-                   'touchedStock': touched_stock,
-                   'materiale': materiale,
-                   'materialCsv': material_csv})
+    return render(request, 'aged/all_available_stock.html',
+                  {'all_available_stock': all_available_stock,
+                   'touched_stock': touched_stock,
+                   'materials': materials,
+                   'materials_as_csv': material_csv})
 
 
 # --------------- user/superuser makes offer
 @login_required
-def usersmakeoffer(request, itm_id):
+def make_offer(request, itm_id):
     """
     Returns a form for making offers, custom set up with the material which is offered from previous page,
     and with the user's own customers.
@@ -228,32 +227,32 @@ def usersmakeoffer(request, itm_id):
     """
     stock_item = AvailableStock.objects.filter(id=itm_id).get()
     customers = Customers.objects.filter(salesperson_owning_account=request.user.id).order_by('customer_name')
-    theSpecificStock = AvailableStock.objects.filter(id = itm_id).get()
+    the_specific_stock = AvailableStock.objects.filter(id=itm_id).get()
 
     if request.method == 'GET':
-        return render(request, 'aged/usersmakeoffer.html', {'stock_item': stock_item, 'customers': customers})
+        return render(request, 'aged/make_offer.html', {'stock_item': stock_item, 'customers': customers})
 
     elif request.method == 'POST':
         # check if the quantity is still available, if so log the offer
         # if not, redirect user
-        if int(theSpecificStock.available_quantity_in_kg) >= int(request.POST.get('quantity')):
+        if int(the_specific_stock.available_quantity_in_kg) >= int(request.POST.get('quantity')):
 
-            dataOfertaStr = request.POST.get('date_of_offer')
-            dateOfOffer = datetime.datetime.fromisoformat(dataOfertaStr).date()
+            offer_date_as_str = request.POST.get('date_of_offer')
+            date_of_offer = datetime.datetime.fromisoformat(offer_date_as_str).date()
             #expiration date is offer date + 7 days
-            expireDateOfOffer = dateOfOffer + datetime.timedelta(days=7)
+            expire_date_of_offer = date_of_offer + datetime.timedelta(days=7)
 
             log_entry = OffersLog(
                         sales_rep_that_made_the_offer=User.objects.filter(username=request.user.get_username()).get(),
-                        offered_stock=theSpecificStock,
-                        offered_product=theSpecificStock.available_product,
+                        offered_stock=the_specific_stock,
+                        offered_product=the_specific_stock.available_product,
                         customer_that_received_offer=Customers.objects.filter(id=int(request.POST.get('customer'))).get(),
                         offered_sold_or_declined_quantity_kg=request.POST.get('quantity'),
                         offer_status='Offered',
                         discount_offered_percents=request.POST.get('discount_in_percent'),
                         price_per_kg_offered=request.POST.get('price'),
-                        date_of_offer=dateOfOffer,
-                        expiration_date_of_offer=expireDateOfOffer
+                        date_of_offer=date_of_offer,
+                        expiration_date_of_offer=expire_date_of_offer
                         )
 
             log_entry.save()
@@ -261,131 +260,128 @@ def usersmakeoffer(request, itm_id):
             stock_item.available_quantity_in_kg -= int(request.POST.get('quantity'))
             stock_item.save()
 
-            return redirect('userawesomeoffer', offerId=log_entry.id)
+            return redirect('offer_completed', offer_id=log_entry.id)
 
         # if the quantity is no longer available because someone else took it
         else:
-            return redirect('notenoughstock', stockId=stock_item.id)
+            return redirect('not_enough_stock', stock_id=stock_item.id)
 
 
 @login_required
-def userawesomeoffer (request, offerId):
+def offer_completed(request, offer_id):
     """
     This confirms the successful offer and gives the opportunity to download offer as pdf
     """
-    myId = offerId
+    my_id = offer_id
     if request.method == 'GET':
-        return render(request, 'aged/userawesomeoffer.html')
+        return render(request, 'aged/offer_completed.html')
 
     # make offer pdf
     elif request.method == 'POST':
-        specificOfferObject = OffersLog.objects.filter(id=myId).get()
+        specific_offer_object = OffersLog.objects.filter(id=my_id).get()
 
-        salesPersonName = specificOfferObject.sales_rep_that_made_the_offer.username
-        customerServiceRepName = specificOfferObject.customer_that_received_offer.allocated_customer_service_rep.customer_service_rep
-        customerName = specificOfferObject.customer_that_received_offer.customer_name
-        dateOfOffer = specificOfferObject.date_of_offer
-        expireDateOfOffer = specificOfferObject.expiration_date_of_offer
-        offeredProduct = specificOfferObject.offered_product.cod_material
-        batch = specificOfferObject.offered_stock.batch
-        offeredQuantity = specificOfferObject.offered_sold_or_declined_quantity_kg
-        offeredPricePerKilo = specificOfferObject.price_per_kg_offered
-        productType = specificOfferObject.offered_product.product_material_type.material_type
-        productBrand = specificOfferObject.offered_product.product_brand.brand
-        stockExpirationDate = specificOfferObject.offered_stock.expiration_date
-        pdfTitle = f'{offeredProduct}-FOR-{customerName}'
+        sales_person_name = specific_offer_object.sales_rep_that_made_the_offer.username
+        customer_service_rep_name = specific_offer_object.customer_that_received_offer.allocated_customer_service_rep.customer_service_rep
+        customer_name = specific_offer_object.customer_that_received_offer.customer_name
+        date_of_offer = specific_offer_object.date_of_offer
+        expire_date_of_offer = specific_offer_object.expiration_date_of_offer
+        offered_product = specific_offer_object.offered_product.cod_material
+        batch = specific_offer_object.offered_stock.batch
+        offered_quantity = specific_offer_object.offered_sold_or_declined_quantity_kg
+        offered_price_per_kilo = specific_offer_object.price_per_kg_offered
+        product_type = specific_offer_object.offered_product.product_material_type.material_type
+        product_brand = specific_offer_object.offered_product.product_brand.brand
+        stock_expiration_date = specific_offer_object.offered_stock.expiration_date
+        pdf_title = f'{offered_product}-FOR-{customer_name}'
 
-        pdf = PdfOfferCreator(pdfTitle,
-                              salesPersonName,
-                              customerServiceRepName,
-                              customerName,
-                              dateOfOffer,
-                              expireDateOfOffer,
-                              offeredProduct,
+        pdf = PdfOfferCreator(pdf_title,
+                              sales_person_name,
+                              customer_service_rep_name,
+                              customer_name,
+                              date_of_offer,
+                              expire_date_of_offer,
+                              offered_product,
                               batch,
-                              offeredQuantity,
-                              offeredPricePerKilo,
-                              productType,
-                              productBrand,
-                              stockExpirationDate
+                              offered_quantity,
+                              offered_price_per_kilo,
+                              product_type,
+                              product_brand,
+                              stock_expiration_date
                               )
         pdf.makePdf()
         # create response that serves the pdf
-        response = HttpResponse(open(f'media/{pdfTitle}.pdf', 'rb'), headers={
+        response = HttpResponse(open(f'media/{pdf_title}.pdf', 'rb'), headers={
                             'Content-Type': 'application/pdf',
-                            'Content-Disposition': f'attachment; filename="{pdfTitle}.pdf"',
+                            'Content-Disposition': f'attachment; filename="{pdf_title}.pdf"',
                             })
         # delete pdf
-        myFileObject = FileSystemStorage()
-        myFileObject.delete(f'{pdfTitle}.pdf')
+        my_file_object = FileSystemStorage()
+        my_file_object.delete(f'{pdf_title}.pdf')
         return response
 
 
 @login_required
-def notenoughstock(request, stockId):
+def not_enough_stock(request, stock_id):
     """
     This returns a page with a few options (anchor tags) available to the person, such as
     remaking the offer for the remaining quantity, or navigating back to other pages
     """
-    stock_item = AvailableStock.objects.filter(id=stockId).get()
-    return render(request, 'aged/notenoghstockavailable.html', {'stock_item': stock_item})
+    stock_item = AvailableStock.objects.filter(id=stock_id).get()
+    return render(request, 'aged/not_enough_stock.html', {'stock_item': stock_item})
 
 
 @login_required
-def userpendingoffers(request):
+def existing_offers(request):
     """
     Hides all touched stock older than 60 days (2 months), but show offers in the future
     (if someone decides to make the offer available from tomorrow, or for next week)
     """
     azi = datetime.datetime.today()
-    sixtyDaysAgo = (azi - datetime.timedelta(days=60)).date()
-    pending = OffersLog.objects.filter(date_of_offer__gte=sixtyDaysAgo, sales_rep_that_made_the_offer=request.user).all().order_by('offer_status')
-    return render(request, 'aged/userpendingoffers.html', {'pending': pending})
+    sixty_days_ago = (azi - datetime.timedelta(days=60)).date()
+    pending = OffersLog.objects.filter(date_of_offer__gte=sixty_days_ago, sales_rep_that_made_the_offer=request.user).all().order_by('offer_status')
+    return render(request, 'aged/existing_offers.html', {'pending': pending})
 
 
 @login_required
-def changeofferedstatus(request, offer_id):
-    #TODO: see comments below maybe
-    # check if product is expired!!!!!!!!!!!!!!!!!
-
+def change_offer_status(request, offer_id):
     # change the status of the offer
-    offeredObject = OffersLog.objects.filter(id=offer_id).get()
+    offered_object = OffersLog.objects.filter(id=offer_id).get()
     if request.method == 'GET':
-        return render(request, 'aged/changeofferedstatus.html', {'object': offeredObject})
+        return render(request, 'aged/change_offer_status.html', {'object': offered_object})
     elif request.method == 'POST':
         # stockObject =
         azi = datetime.date.today()
         if request.POST.get('sold') == "1":
             # the "mark it sold" button was pushed - so modify in offers log
-            offeredObject.offer_status = 'Sold'
-            offeredObject.date_of_outcome = azi
-            offeredObject.expiration_date_of_offer = None
-            offeredObject.save()
+            offered_object.offer_status = 'Sold'
+            offered_object.date_of_outcome = azi
+            offered_object.expiration_date_of_offer = None
+            offered_object.save()
             # modify quantity in available stock
-            offeredObject.offered_stock.under_offer_quantity_in_kg -= offeredObject.offered_sold_or_declined_quantity_kg
-            offeredObject.offered_stock.sold_quantity_in_kg += offeredObject.offered_sold_or_declined_quantity_kg
-            offeredObject.offered_stock.save()
-            return redirect('userpendingoffers')
+            offered_object.offered_stock.under_offer_quantity_in_kg -= offered_object.offered_sold_or_declined_quantity_kg
+            offered_object.offered_stock.sold_quantity_in_kg += offered_object.offered_sold_or_declined_quantity_kg
+            offered_object.offered_stock.save()
+            return redirect('existing_offers')
         elif request.POST.get('declined') == "1":
             # the "mark it declined" button was pushed - so modify in offers log
-            offeredObject.offer_status = 'Declined'
-            offeredObject.date_of_outcome = azi
-            offeredObject.expiration_date_of_offer = None
-            offeredObject.save()
+            offered_object.offer_status = 'Declined'
+            offered_object.date_of_outcome = azi
+            offered_object.expiration_date_of_offer = None
+            offered_object.save()
             # modify quantity in available stock
-            offeredObject.offered_stock.under_offer_quantity_in_kg -= offeredObject.offered_sold_or_declined_quantity_kg
-            offeredObject.offered_stock.available_quantity_in_kg += offeredObject.offered_sold_or_declined_quantity_kg
-            offeredObject.offered_stock.save()
-            return redirect('userpendingoffers')
+            offered_object.offered_stock.under_offer_quantity_in_kg -= offered_object.offered_sold_or_declined_quantity_kg
+            offered_object.offered_stock.available_quantity_in_kg += offered_object.offered_sold_or_declined_quantity_kg
+            offered_object.offered_stock.save()
+            return redirect('existing_offers')
         elif request.POST.get('changeOfferRedirect') == "1":
             # this redirects to a change offer form
-            return redirect('changeoffer', offer_id=offeredObject.id, mess='f')
+            return redirect('modify_existing_offer', offer_id=offered_object.id, mess='f')
         elif request.POST.get('return') == "1":
-            return redirect('userpendingoffers')
+            return redirect('existing_offers')
 
 
 @login_required
-def changeoffer(request, offer_id, mess):
+def modify_existing_offer(request, offer_id, mess):
     """
     This is used when an existing offer needs to be changed.
     """
@@ -398,55 +394,55 @@ def changeoffer(request, offer_id, mess):
     else:
         message = 'It seems like someone beat you to it, and there is not enough stock left to increase the offered'
         message += ' quantity. I have adjusted the maximum quantity to display the correct maximum quantity available .'
-    myOfferToChange = OffersLog.objects.filter(id=offer_id).get()
+    my_offer_to_change = OffersLog.objects.filter(id=offer_id).get()
     customers = Customers.objects.filter(salesperson_owning_account=request.user)
     # here I want the whole quantity, available pus what was originally offered
-    kgAvailableWithTheOnesAddedInTheOffer = myOfferToChange.offered_sold_or_declined_quantity_kg + myOfferToChange.offered_stock.available_quantity_in_kg
+    kg_available_with_the_ones_added_in_the_offer = my_offer_to_change.offered_sold_or_declined_quantity_kg + my_offer_to_change.offered_stock.available_quantity_in_kg
     if request.method == 'GET':
-        dateOfOfferString = str(myOfferToChange.date_of_offer)
-        return render(request, 'aged/changeoffer.html',
-                      {'offer': myOfferToChange,
+        date_of_offer_string = str(my_offer_to_change.date_of_offer)
+        return render(request, 'aged/modify_existing_offer.html',
+                      {'offer': my_offer_to_change,
                        'customers': customers,
-                       'wholeQuantity': kgAvailableWithTheOnesAddedInTheOffer,
-                       'dateOfOfferString': dateOfOfferString,
+                       'whole_quantity': kg_available_with_the_ones_added_in_the_offer,
+                       'date_of_offer_string': date_of_offer_string,
                        'message': message})
     elif request.method == 'POST':
         # check that the actual quantity (offered + free) is still available (nobody else offered the quantity while
         # form was filled)
-        if kgAvailableWithTheOnesAddedInTheOffer >= int(request.POST.get('quantity')):
+        if kg_available_with_the_ones_added_in_the_offer >= int(request.POST.get('quantity')):
             # get the quantities into variables
-            vecheaOfertaKg = myOfferToChange.offered_sold_or_declined_quantity_kg
+            vecheaOfertaKg = my_offer_to_change.offered_sold_or_declined_quantity_kg
             nouaOfertaKg = int(request.POST.get('quantity'))
-            totalSubOfertaKg = myOfferToChange.offered_stock.under_offer_quantity_in_kg
-            totalDisponibilKg = myOfferToChange.offered_stock.available_quantity_in_kg
+            totalSubOfertaKg = my_offer_to_change.offered_stock.under_offer_quantity_in_kg
+            totalDisponibilKg = my_offer_to_change.offered_stock.available_quantity_in_kg
             # AvailableStock adjust under offer quantity and available quantity
             # subtract the old offered qty from total offered qty (nullifying the previous transaction),
             # and then add the new offer value (which can be bigger or smaller than the original one)
-            myOfferToChange.offered_stock.under_offer_quantity_in_kg = (totalSubOfertaKg - vecheaOfertaKg) + nouaOfertaKg
+            my_offer_to_change.offered_stock.under_offer_quantity_in_kg = (totalSubOfertaKg - vecheaOfertaKg) + nouaOfertaKg
             # add to available quantity the previously offered qty (practically nullifying the transaction),
             # then subtract the new offered quantity
-            myOfferToChange.offered_stock.available_quantity_in_kg = (totalDisponibilKg + vecheaOfertaKg) - nouaOfertaKg
+            my_offer_to_change.offered_stock.available_quantity_in_kg = (totalDisponibilKg + vecheaOfertaKg) - nouaOfertaKg
 
             # Add the other values from the form
-            myOfferToChange.customer_that_received_offer = Customers.objects.filter(id=request.POST.get('customer')).get()
-            myOfferToChange.offered_sold_or_declined_quantity_kg = request.POST.get('quantity')
-            myOfferToChange.discount_offered_percents = request.POST.get('discount_in_percent')
-            myOfferToChange.price_per_kg_offered = request.POST.get('price')
-            myOfferToChange.date_of_offer = request.POST.get('date_of_offer')
-            myOfferToChange.expiration_date_of_offer = datetime.datetime.strptime(request.POST.get('date_of_offer'), '%Y-%m-%d').date() + datetime.timedelta(days=7)
+            my_offer_to_change.customer_that_received_offer = Customers.objects.filter(id=request.POST.get('customer')).get()
+            my_offer_to_change.offered_sold_or_declined_quantity_kg = request.POST.get('quantity')
+            my_offer_to_change.discount_offered_percents = request.POST.get('discount_in_percent')
+            my_offer_to_change.price_per_kg_offered = request.POST.get('price')
+            my_offer_to_change.date_of_offer = request.POST.get('date_of_offer')
+            my_offer_to_change.expiration_date_of_offer = datetime.datetime.strptime(request.POST.get('date_of_offer'), '%Y-%m-%d').date() + datetime.timedelta(days=7)
 
             # Save modifications
-            myOfferToChange.offered_stock.save()
-            myOfferToChange.save()
+            my_offer_to_change.offered_stock.save()
+            my_offer_to_change.save()
 
-            return redirect('userawesomeoffer', offerId=offer_id)
+            return redirect('offer_completed', offer_id=offer_id)
         else:
             # if quantity is too low, is adjusted and the form is returned
-            return redirect('changeoffer', offer_id=myOfferToChange.id, mess='t')
+            return redirect('modify_existing_offer', offer_id=my_offer_to_change.id, mess='t')
 
 # Opens the page where superusers can see the reports of who sold what, what is under offer, declined, etc
 @user_passes_test(lambda u: u.is_superuser)
-def superuserreports(request):
+def superuser_reports(request):
     # if you chose a certain value in one of the filters (such as a certain salesperson)
     # you will be served a page where the value will be prefilled (ie. if you filter by Sarah the filter will stay on Sarah )
     # that is what the dict does
@@ -519,7 +515,7 @@ def superuserreports(request):
                 obj = OffersLog.objects.filter(date_of_offer__range=[start, end], offer_status=stateOfOffers).all()
 
     return render(request,
-                  'aged/superuserreports.html',
+                  'aged/superuser_reports.html',
                   {'objects': obj,
                           'allUsersWithOffers': allUsersWithOffers,
                           'allOfferStatus': allOfferStatus,

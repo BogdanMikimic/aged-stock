@@ -70,7 +70,7 @@
       {% if obj.stock_expired == True %}
       <td style="color:red">Stock Expired</td>
       {% else %}
-      <td><a class="a_menu_make_offer" href="{% url 'changeofferedstatus' offer_id=obj.id %}"> Change </a></td>
+      <td><a class="a_menu_make_offer" href="{% url 'change_offer_status' offer_id=obj.id %}"> Change </a></td>
       {% endif %}
 
     {% elif obj.offer_status == "Sold" %}
@@ -104,7 +104,7 @@
 {% else %}
 <p style="color:red">You have no activity to show!</p>
 {% endif %}
-<a class="a_menu" href="{% url 'userseallstock' %}">Back to available stock</a>
+<a class="a_menu" href="{% url 'all_available_stock' %}">Back to available stock</a>
 <a class="a_menu" href="{% url 'home' %}">Back to homepage</a>
 </div>
 {% endblock %}

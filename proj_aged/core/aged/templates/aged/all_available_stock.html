@@ -26,14 +26,14 @@
         <label class="label_checkBox" for="">Under Offer</label>
         <input id="underOfferCB" type="checkbox" name="" value="1" checked>
       </div>
-      {% for mat in materiale %}
+      {% for mat in materials %}
       <div class="div_indiv_filter">
         <label class="label_checkBox" for="">{{ mat.material_type }}</label>
         <input id="{{mat.material_type}}" type="checkbox" name="" value="1">
       </div>
       {% endfor %}
     </div>
-    <p id='materialCsv' style="display:none">{{ materialCsv }}</p>
+    <p id='materialCsv' style="display:none">{{ materials_as_csv }}</p>
   </div>
 
   <div class="div_search_bar">
@@ -41,7 +41,7 @@
     <button id ="searchButton" type="button" name="button">Search</button>
   </div>
 
-  {% if freeStockAll|length > 0 %}
+  {% if all_available_stock|length > 0 %}
   <table class="table_stocks_and_report">
     <tr class = "tr_first_line">
       <th>Product</th>
@@ -49,7 +49,7 @@
       <th>Quantity</th>
       <th>Offer</th>
     </tr>
-    {% for tStock in touchedStock %}
+    {% for tStock in touched_stock %}
     {% if tStock.offer_status == "Offered" %}
     <tr class="tr_offered" data-material="{{ tStock.offered_product.product_material_type.material_type }}">
       <td class="table_sku" style="color:orange">{{ tStock.offered_product.cod_material }}</td>
@@ -74,13 +74,13 @@
     </tr>
     {% endif %}
     {% endfor %}
-    {% for freeStock in freeStockAll %}
+    {% for freeStock in all_available_stock %}
     {% if freeStock.available_quantity_in_kg > 0 %}
     <tr data-material="{{ freeStock.available_product.product_material_type.material_type }}">
       <td class="table_sku">{{ freeStock.available_product }}</td>
       <td>{{ freeStock.expiration_date }}</td>
       <td>{{ freeStock.available_quantity_in_kg }} kg</td>
-      <td><a class="a_menu_make_offer" href="{% url 'usersmakeoffer' itm_id=freeStock.id %}">Make an offer 🡢</a></td>
+      <td><a class="a_menu_make_offer" href="{% url 'make_offer' itm_id=freeStock.id %}">Make an offer 🡢</a></td>
     </tr>
     {% endif %}
     {% endfor %}

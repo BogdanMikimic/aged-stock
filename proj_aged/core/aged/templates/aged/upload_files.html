@@ -6,9 +6,9 @@
 <div class="div_menu_no_border">
   <p class="p_menu">Hi {{user}}, </p>
   <p class="p_menu">What file you need to upload?</p>
-  <a class="a_menu" href="{% url 'salespeopleupload' %}">(1) Salespeople, customer care agents and customers</a>
+  <a class="a_menu" href="{% url 'upload_file_with_sales_people' %}">(1) Salespeople, customer care agents and customers</a>
   <a class="a_menu" href="#">(2) Historic data (not implemented) </a>
-  <a class="a_menu" href="{% url 'agedstockupload' %}">(3) Aged stock</a>
+  <a class="a_menu" href="{% url 'upload_file_with_aged_stock' %}">(3) Aged stock</a>
 </div>
 
 {% endblock %}
