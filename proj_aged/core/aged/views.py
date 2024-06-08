@@ -350,11 +350,11 @@ def change_offer_status(request, offer_id):
         return render(request, 'aged/change_offer_status.html', {'object': offered_object})
     elif request.method == 'POST':
         # stockObject =
-        azi = datetime.date.today()
+        today_date = datetime.date.today()
         if request.POST.get('sold') == "1":
             # the "mark it sold" button was pushed - so modify in offers log
             offered_object.offer_status = 'Sold'
-            offered_object.date_of_outcome = azi
+            offered_object.date_of_outcome = today_date
             offered_object.expiration_date_of_offer = None
             offered_object.save()
             # modify quantity in available stock
@@ -365,7 +365,7 @@ def change_offer_status(request, offer_id):
         elif request.POST.get('declined') == "1":
             # the "mark it declined" button was pushed - so modify in offers log
             offered_object.offer_status = 'Declined'
-            offered_object.date_of_outcome = azi
+            offered_object.date_of_outcome = today_date
             offered_object.expiration_date_of_offer = None
             offered_object.save()
             # modify quantity in available stock
@@ -411,17 +411,17 @@ def modify_existing_offer(request, offer_id, mess):
         # form was filled)
         if kg_available_with_the_ones_added_in_the_offer >= int(request.POST.get('quantity')):
             # get the quantities into variables
-            vecheaOfertaKg = my_offer_to_change.offered_sold_or_declined_quantity_kg
-            nouaOfertaKg = int(request.POST.get('quantity'))
-            totalSubOfertaKg = my_offer_to_change.offered_stock.under_offer_quantity_in_kg
-            totalDisponibilKg = my_offer_to_change.offered_stock.available_quantity_in_kg
+            old_offer_kg = my_offer_to_change.offered_sold_or_declined_quantity_kg
+            new_offer_kg = int(request.POST.get('quantity'))
+            already_offered_kg = my_offer_to_change.offered_stock.under_offer_quantity_in_kg
+            all_available_stock_of_that_product_kg = my_offer_to_change.offered_stock.available_quantity_in_kg
             # AvailableStock adjust under offer quantity and available quantity
             # subtract the old offered qty from total offered qty (nullifying the previous transaction),
             # and then add the new offer value (which can be bigger or smaller than the original one)
-            my_offer_to_change.offered_stock.under_offer_quantity_in_kg = (totalSubOfertaKg - vecheaOfertaKg) + nouaOfertaKg
+            my_offer_to_change.offered_stock.under_offer_quantity_in_kg = (already_offered_kg - old_offer_kg) + new_offer_kg
             # add to available quantity the previously offered qty (practically nullifying the transaction),
             # then subtract the new offered quantity
-            my_offer_to_change.offered_stock.available_quantity_in_kg = (totalDisponibilKg + vecheaOfertaKg) - nouaOfertaKg
+            my_offer_to_change.offered_stock.available_quantity_in_kg = (all_available_stock_of_that_product_kg + old_offer_kg) - new_offer_kg
 
             # Add the other values from the form
             my_offer_to_change.customer_that_received_offer = Customers.objects.filter(id=request.POST.get('customer')).get()
