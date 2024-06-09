@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import date, datetime
 from ..models import *
 
+
 def check_if_file_was_already_uploaded(xlsx_file_path: str) -> bool:
     """
     Sometimes the same xlsx file is being shared.
@@ -24,6 +25,7 @@ def check_if_file_was_already_uploaded(xlsx_file_path: str) -> bool:
         file.close()
         CheckIfFileWasAlreadyUploaded(data_creare_fisier=creation_date).save()
         return False
+
 
 def put_brand_into_db(dataframe: object) -> None:
     """
@@ -67,7 +69,6 @@ def put_material_type_into_db(dataframe: object) -> None:
         )
 
 
-
 def put_stock_location_in_database(dataframe: object) -> None:
     """
     Brings unique stock locations into the database.
@@ -83,6 +84,7 @@ def put_stock_location_in_database(dataframe: object) -> None:
             location_of_stocks=xlsx_location
         )
 
+
 def date_to_string_or_string_to_date(my_date: str|object) -> str|object:
     """
     Converts datetime-date objects into strings
@@ -96,6 +98,7 @@ def date_to_string_or_string_to_date(my_date: str|object) -> str|object:
         return datetime.strptime(my_date, '%Y-%m-%d').date()
     else:
         return my_date.strftime('%Y-%m-%d')
+
 
 def check_is_expired_in_xlsx(product_expiration_date_time:str|object) -> bool:
     """

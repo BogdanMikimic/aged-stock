@@ -1,3 +1,5 @@
+import datetime
+
 from django.test import TestCase
 from django.contrib.auth.models import User
 from .models import CustomerService, Customers, Brands, MaterialType, Products, LocationsForStocks, AvailableStock
@@ -213,8 +215,11 @@ class CheckAgedStockUploads(TestCase):
         self.assertTrue('GBX' in stock_locations)
 
     def test_check_is_expired(self):
-        self.assertTrue(check_is_expired_in_xlsx('2024-01-12'))
-        self.assertFalse(check_is_expired_in_xlsx('2024-06-12'))
+        today_date = datetime.date.today()
+        yesterday = date_to_string_or_string_to_date(today_date - datetime.timedelta(days=1))
+        tomorrow = date_to_string_or_string_to_date(today_date + datetime.timedelta(days=1))
+        self.assertTrue(check_is_expired_in_xlsx(yesterday))
+        self.assertFalse(check_is_expired_in_xlsx(tomorrow))
 
     def test_products_uploaded_into_database(self):
         dataframe = return_data_frame_without_empty_rows_and_cols(
