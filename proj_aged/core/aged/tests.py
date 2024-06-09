@@ -1,4 +1,5 @@
 import datetime
+from random import randint
 
 from django.test import TestCase
 from django.contrib.auth.models import User
@@ -19,6 +20,17 @@ from aged.lab.Aged_stock import check_if_file_was_already_uploaded, \
     put_products_in_the_database, \
     put_available_stock_in_the_database, \
     date_to_string_or_string_to_date
+
+message = '''Some tests are relying on the expiration dates of the stocks, such as they are presented in the provided
+sample xlsx file. For instance, there is a function that checks if the stock is expired, and if it is, it ignores it and
+does not upload it in the database. Some of the tests are checking the database for specific products existing in the 
+sample xlsx file, but since eventually all of the products provided in the sample xlsx stock file will be past their
+expiration dates, none of them will be presented in the database. 
+Therefore, where data-sensitive test are run, I have introduced a function called "dataframe_date_altering", that
+intercepts the dataframes containing the xlsx information, and move the expiration date dates of the products in the 
+future, to make sure the database is populated whenever the test is run. The xlsx file in itself is not altered.
+'''
+print(message)
 
 class CheckSalespeopleFileUpload(TestCase):
 
@@ -172,6 +184,21 @@ class CheckSalespeopleFileUpload(TestCase):
         self.assertEqual(target_customer.customer_status, 'Inactive')
 
 class CheckAgedStockUploads(TestCase):
+
+    def dataframe_date_altering(self, dataframe) -> pd.DataFrame:
+        """
+        It takes a dataframe and changes the 'Expiration date' column
+        to a new date between 30 and 600 days from today
+        :param dataframe: dataframe containing 'Expiration date' column
+        :return: dataframe
+        """
+        new_dataframe = dataframe.copy()
+        for i in range(0, len(new_dataframe)):
+            new_date = datetime.datetime.now() + datetime.timedelta(days=randint(30, 600))
+            new_dataframe.at[i, 'Expiration date'] = new_date
+
+        return new_dataframe
+
     def test_aged_stock_file_upload(self):
         # check file was not yet uploaded - returns False if not
         self.assertFalse(check_if_file_was_already_uploaded("aged\\lab\\DataSafeOnes\\01_good_AgedStock.xlsx"))
@@ -215,6 +242,7 @@ class CheckAgedStockUploads(TestCase):
         self.assertTrue('GBX' in stock_locations)
 
     def test_check_is_expired(self):
+        # checks the function with direct input of expired and unexpired dates
         today_date = datetime.date.today()
         yesterday = date_to_string_or_string_to_date(today_date - datetime.timedelta(days=1))
         tomorrow = date_to_string_or_string_to_date(today_date + datetime.timedelta(days=1))
@@ -236,11 +264,12 @@ class CheckAgedStockUploads(TestCase):
         in different models up to and including populating the available stock model.
         """
         dataframe = return_data_frame_without_empty_rows_and_cols(path_to_xlsx_with_aged_stocks)
-        put_brand_into_db(dataframe)
-        put_material_type_into_db(dataframe)
-        put_stock_location_in_database(dataframe)
-        put_products_in_the_database(dataframe)
-        put_available_stock_in_the_database(dataframe)
+        expiration_dates_in_the_future_dataframe = self.dataframe_date_altering(dataframe)
+        put_brand_into_db(expiration_dates_in_the_future_dataframe)
+        put_material_type_into_db(expiration_dates_in_the_future_dataframe)
+        put_stock_location_in_database(expiration_dates_in_the_future_dataframe)
+        put_products_in_the_database(expiration_dates_in_the_future_dataframe)
+        put_available_stock_in_the_database(expiration_dates_in_the_future_dataframe)
 
     def test_available_stock_in_database(self):
         self.populate_stocks_database("aged\\lab\\DataSafeOnes\\05_good_AgedStock_only_two_brands.xlsx")
@@ -252,7 +281,6 @@ class CheckAgedStockUploads(TestCase):
             AvailableStock.objects.filter(
                 available_product=Products.objects.filter(cod_material='CHO-005-995').get(),
                 stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
-                expiration_date=date_to_string_or_string_to_date('2024-12-20'),
                 batch='3883079',
                 original_quantity_in_kg=140,
                 under_offer_quantity_in_kg=0,
@@ -265,7 +293,6 @@ class CheckAgedStockUploads(TestCase):
             AvailableStock.objects.filter(
                 available_product=Products.objects.filter(cod_material='CHO-009-457').get(),
                 stock_location=LocationsForStocks.objects.filter(location_of_stocks='GBX').get(),
-                expiration_date=date_to_string_or_string_to_date('2024-12-19'),
                 batch='611706454092',
                 original_quantity_in_kg=520,
                 under_offer_quantity_in_kg=0,
