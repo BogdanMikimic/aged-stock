@@ -90,7 +90,7 @@ class MixinFunctions:
                    price_per_kg: str,
                    date_of_offer: str) -> None:
         """
-        Contains all the Selenium logic to fill the form that creates a product offer
+        Contains all the Selenium logic to fill the form that creates a product offer.
         """
         # select customer
         select_element = self.browser.find_element(By.NAME, 'customer')

@@ -6,6 +6,8 @@ from ..models import CustomerService, Customers
 def only_one_tab_check(spreadsheet_and_path:str) -> bool:
     """
     Checks that the spreadsheet has only one tab
+    :param spreadsheet_and_path: path to spreadsheet
+    :return: True if the spreadsheet has only one tab, False otherwise
     """
     file = pd.ExcelFile(spreadsheet_and_path, engine='openpyxl')
     if len(file.sheet_names) == 1:
@@ -18,7 +20,9 @@ def only_one_tab_check(spreadsheet_and_path:str) -> bool:
 
 def check_spreadsheet_contains_data(spreadsheet_and_path:str) -> bool:
     """
-    Checks that the document is not blank
+    Checks that the document is not blank.
+    :param spreadsheet_and_path: path to spreadsheet
+    :return: True if the document is not blank, False otherwise
     """
     df = pd.read_excel(spreadsheet_and_path)
     # check if the document actually holds any values
@@ -28,9 +32,11 @@ def check_spreadsheet_contains_data(spreadsheet_and_path:str) -> bool:
         return True
 
 
-def return_data_frame_without_empty_rows_and_cols(spreadsheet_and_path:str) -> object:
+def return_data_frame_without_empty_rows_and_cols(spreadsheet_and_path: str) -> pd.DataFrame:
     """
     Returns only the data as a pandas dataframe, removing empty rows and columns
+    :param spreadsheet_and_path: path to spreadsheet
+    :return: Pandas dataframe
     """
     df = pd.read_excel(spreadsheet_and_path, header=None)
     # delete rows where all elements are NaN
@@ -47,8 +53,10 @@ def return_data_frame_without_empty_rows_and_cols(spreadsheet_and_path:str) -> o
 
 def check_headers(expected_headers: list[str], dataframe: object) -> bool:
     """
-    Checks the headers in the dataframe against expected headers and returns True if they are the same
-    and Fa;se if they are not
+    Checks the headers in the dataframe against expected headers
+    :param expected_headers: expected headers of the spreadsheet as list of strings
+    :param dataframe: Pandas dataframe
+    :return: True if the headers match, False otherwise
     """
     # retrieve the actual headers from the DataFrame
     actual_headers = dataframe.columns.tolist()
@@ -97,7 +105,7 @@ def create_customer_care_accounts(dataframe: object) -> None:
     Populates the database with customer care entries rom xlsx
     Deletes the customer care entries that are not in the xlsx
 
-    :param dataframe: pamdas dataframe
+    :param dataframe: Pandas dataframe
     """
 
     customer_care_agents_list = dataframe['Customer Care Agent'].tolist()
@@ -136,7 +144,7 @@ def create_customer_accounts(dataframe: object) -> None:
     Adds/updates customers in the database and link them to the foreign keys of Sales person and customer care rep.
     It marks as inactive customers not in the database
 
-    :param dataframe: a pandas dataframe representing the most current sales people, customer care and customers table
+    :param dataframe: a Pandas dataframe representing the most current sales people, customer care and customers table
     """
     for i in range(len(dataframe)):
         # extract data from xlsx rows
