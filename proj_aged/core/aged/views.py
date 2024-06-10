@@ -13,6 +13,8 @@ from .lab.Aged_stock import check_if_file_was_already_uploaded,\
       put_stock_location_in_database,\
       put_products_in_the_database,\
       put_available_stock_in_the_database
+from .lab.tasks import code_already_run_today, \
+      delete_expired_stock_and_mark_offered_as_stock_expired
 
 from .lab.writePdfOffer import PdfOfferCreator
 import datetime
@@ -528,7 +530,7 @@ def stock_help(request):
 
 @login_required
 @user_passes_test(lambda u: u.get_username() == 'Testbot')
-def task1(request):
+def run_tasks(request):
     """
     Requires a superuser called Testbot
     Removes expired PRODUCTS from all stock table
@@ -545,26 +547,12 @@ def task1(request):
     """
 
     # the code runs once a day - check if it ran today
-    today_date = datetime.date.today()
-    already_done_today = False
-    data_in_db = AFostVerificatAzi.objects.all()
-    for offer_containing_expired_stock in data_in_db:
-        if offer_containing_expired_stock.expiredOferedStock == today_date:
-            already_done_today = True
 
-    if already_done_today == False:
-        # Delete expired products from available stock + mark the offers as expired
-        expired_stock_in_available_stock_list = AvailableStock.objects.filter(expiration_date__lt=today_date).all() # caveat - codul ruleaza la 4 dimineata, asa ca nu sterg produsul in ziua in care expira, ci in dimineata zilei urmatoare
-        for expired_stock in expired_stock_in_available_stock_list:
-            # retrieve all the offers that contain the expired stock
-            list_of_offers_containing_expired_stock = OffersLog.objects.filter(offered_stock=expired_stock).all()
-            for offer_containing_expired_stock in list_of_offers_containing_expired_stock:
-                # mark offer as containing an expired product
-                offer_containing_expired_stock.stock_expired = True
-                offer_containing_expired_stock.save()
-            expired_stock.delete()
-
-        # # Find OFFERS that expire today and change their status to expired
+    if not code_already_run_today():
+        # Delete expired products from available stock + mark the offers as containing expired stock
+        delete_expired_stock_and_mark_offered_as_stock_expired()
+    #     print('the function delete_expired_stock_and_mark_offered_as_stock_expired run')
+    #     # # Find OFFERS that expire today and change their status to expired
         # # Return the quantity to available stock
         # expiredOfferStockToReturn = OffersLog.objects.filter(expiration_date_of_offer__lt=today_date).all()
         # for stock in expiredOfferStockToReturn:
@@ -601,6 +589,6 @@ def task1(request):
         #         oferta.delete()
 
         # save the date in the database to mark that the operations have been done today
-        dt = AFostVerificatAzi(expiredOferedStock=today_date)
-        dt.save()
+        # dt = AFostVerificatAzi(expiredOferedStock=today_date)
+        # dt.save()
     return render(request, 'aged/teste.html')

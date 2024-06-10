@@ -13,7 +13,7 @@ urlpatterns = [
             path('upload_files/', views.upload_files, name='upload_files'),
             path('upload_file_with_sales_people/', views.upload_file_with_sales_people, name='upload_file_with_sales_people'),
             path('upload_file_with_aged_stock/', views.upload_file_with_aged_stock, name='upload_file_with_aged_stock'),
-            path('task1/', views.task1),
+            path('run_tasks/', views.run_tasks),
             path('change_offer_status/<str:offer_id>', views.change_offer_status, name='change_offer_status'),
             path('modify_existing_offer/<str:offer_id>/<str:mess>', views.modify_existing_offer, name='modify_existing_offer'),
             path('stock_help/', views.stock_help, name='help'),

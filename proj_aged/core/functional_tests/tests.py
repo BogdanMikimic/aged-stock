@@ -2,14 +2,15 @@ import random
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase # this a  class provided by Django for tests
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
-from aged.models import AvailableStock,\
-    Products,\
-    LocationsForStocks,\
-    CheckIfFileWasAlreadyUploaded,\
+from aged.models import AvailableStock, \
+    Products, \
+    LocationsForStocks, \
+    CheckIfFileWasAlreadyUploaded, \
     Brands, \
     Customers, \
     CustomerService, \
-    OffersLog
+    OffersLog, \
+    AFostVerificatAzi
 
 from aged.lab.Aged_stock import date_to_string_or_string_to_date
 from aged.lab.Sales_people_and_their_accounts2 import return_data_frame_without_empty_rows_and_cols
@@ -20,6 +21,7 @@ import datetime
 import pandas as pd
 import time
 import PyPDF2
+from random import randint
 
 
 message = '''
@@ -36,11 +38,10 @@ instance Selenium may look for a specific product code in a table row, without f
 at the time you are running the test, the offer is expired, and the product was never uploaded
 into the database as available stock in the first place.
 
-If that happens, first check the "proj_aged/core/aged/lab/DataSafeOnes/01_good_AgedStock.xlsx" file,
-column I - Expiration date, and make sure all dates are in the future.
+Therefore I have provided the "00_good_AgedStock_good_for_100_years.xlsx" file that contains the
+same data as "01_good_AgedStock.xlsx" but has has expiration dates of products pushed 100 years in the future. 
 
-Next, MixinFunctions.my_offer_date returns 2 dates - a "present" date and "future" offer date.
-It will make sense for you to change those to a more appropriate dates that represent the present/future.  
+If you are running this more than 100 years in the future - is code archeology a thing now?
 '''
 print(message)
 
@@ -48,7 +49,6 @@ mikimic_admin_password = 'adminpassword'
 user_password = 'password123'
 
 class MixinFunctions:
-
     def date_string_with_month_name(self, date_in_string_format_with_dashes: str) -> str:
         """
         Takes in the date in string format YYYY-MM-DD format (for example: '2024-05-28').
@@ -320,12 +320,12 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
             'The file requires the following headers:'))
 
         # he goes back, and uploads the correct file
-        self.upload_aged_stock_only('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+        self.upload_aged_stock_only('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
         # he is met by a message that says the file was uploaded successfully
         self.assertEqual(self.browser.find_element(By.ID, 'span_message').text, 'File uploaded')
 
         # he checks his xlsx file for a few random products and checks that there are in the database
-        my_stock_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+        my_stock_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
         random_rows = my_stock_xlsx.sample(n=2)
         self.assertTrue(AvailableStock.objects.filter(
             available_product=Products.objects.filter(cod_material=random_rows.iloc[0]['Material']).get(),
@@ -355,7 +355,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
         # uploaded by recording the creation date of the file
         date_file_was_created_db_list = CheckIfFileWasAlreadyUploaded.objects.values_list('data_creare_fisier',
                                                                                           flat=True)
-        right_absolute_file_path = os.path.abspath('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+        right_absolute_file_path = os.path.abspath('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
         file = pd.ExcelFile(right_absolute_file_path, engine='openpyxl')
         workbook = file.book
         creation_date = str(workbook.properties.created)
@@ -371,7 +371,7 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
         """
         # populate database
         self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx',
-                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+                                                                 'aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
 
         # he goes to the page where all stock is displayed (userallstock), opened from 'Sell some stuff 🡢'
         self.browser.get(self.live_server_url)
@@ -443,7 +443,7 @@ class UserOffers(StaticLiveServerTestCase, MixinFunctions):
 
         # he uploads the xlsx files in the database
         self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/17_just_two_sales_people.xlsx',
-                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+                                                                 'aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
 
     def tearDown(self) -> None:  # This code runs once AFTER EACH test
         self.browser.quit()  # quits firefox
@@ -882,7 +882,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
 
         # he uploads the xlsx files in the database
         self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx',
-                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+                                                                 'aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
         # Morgan logs in her account
         self.log_in_account('Morgan')
 
@@ -1036,30 +1036,30 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
 
         # he uploads the xlsx files in the database
         self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx',
-                                                                 'aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+                                                                 'aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
         # he also keeps the xlsx handy
-        self.aged_stock_xlsx_dataframe = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
+        self.aged_stock_xlsx_dataframe = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
 
 
     def tearDown(self) -> None:
         self.browser.quit()
 
-    def test_expired_offers_are_removed(self):
+    def test_expired_stock_is_removed_and_offers_containing_the_stock_are_marked_expired(self):
         # he asks Morgan to make 4 offers
-        # he selects 4 stocks at random form the xlsx file
-        my_stocks_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/01_good_AgedStock.xlsx')
-        random_4_stock_rows = my_stocks_xlsx.sample(n=5)
+        # he selects 5 stocks at random form the xlsx file
+        my_stocks_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
+        random_5_stock_rows = my_stocks_xlsx.sample(n=5)
         # and he asks Morgan to make some offers for 4 of them
         # Morgan logs in her account
         self.log_in_account('Morgan')
 
         # she selects 4 customers of hers (from the xlsx)
         all_customers_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx')
-        three_customers_list = list()
+        four_customers_list = list()
         for i in range(len(all_customers_xlsx)):
             if all_customers_xlsx.iloc[i]['Sales Rep'].split(' ')[0] == 'Morgan':
-                if len(three_customers_list) < 4:
-                    three_customers_list.append(all_customers_xlsx.iloc[i]['Customer Name'])
+                if len(four_customers_list) < 4:
+                    four_customers_list.append(all_customers_xlsx.iloc[i]['Customer Name'])
                 else:
                     break
 
@@ -1068,13 +1068,13 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
             # she navigates to the page with available stock
             self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
             # she chose the first/next material from the 3 in the materials list
-            material = random_4_stock_rows.iloc[j]['Material']
+            material = random_5_stock_rows.iloc[j]['Material']
             # she clicks the button to make an offer for the selected material
             self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
             # she makes an offer for the first/next material addressed to her first/next customer in her list
             # she makes sure that the offered quantity is in the selected available range
-            self.make_offer(three_customers_list[j],
-                            str(random.randrange(int(random_4_stock_rows.iloc[j]['Quantity']))),
+            self.make_offer(four_customers_list[j],
+                            str(random.randrange(int(random_5_stock_rows.iloc[j]['Quantity']))),
                             '1.5',
                             '1.5',
                             self.my_offer_date())
@@ -1087,12 +1087,53 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
         self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'table_sku')), 4)
 
         # she marks the first one as sold
+        material = random_5_stock_rows.iloc[0]['Material']
+        self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
+        self.browser.find_element(By.NAME, 'sold').click()
 
 
-        # she marks the second one as declined
+        # and she marks the second one as declined
+        material = random_5_stock_rows.iloc[1]['Material']
+        self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
+        self.browser.find_element(By.NAME, 'declined').click()
+
+        ## we'll go into the database search for the offered materials and change their expiration date to yesterday
+        for i in range(len(random_5_stock_rows)):
+            expired_stock = AvailableStock.objects.filter(
+                available_product=Products.objects.filter(cod_material=random_5_stock_rows.iloc[i]['Material']).get()).get()
+            expired_stock.expiration_date = datetime.date.today() - datetime.timedelta(days=1)
+            expired_stock.save()
+
+        ## let's run the task
+        # sign in as the bot
+        self.log_in_account('Testbot')
+        # and access the page
+        self.browser.get(self.live_server_url + '/run_tasks/')
+
+        # sign back in as the Morgan
+        self.log_in_account('Morgan')
+
+        # check that the task run by checking the database marked that it run
+        self.assertEqual(AFostVerificatAzi.objects.latest('id').expiredOferedStock, datetime.date.today())
+        # check the status of the offers in existing offers is 'Stock Expired'
+        self.browser.get(self.live_server_url + '/existing_offers/')
+        data_rows = self.browser.find_elements(By.TAG_NAME, 'tr')
+        for row in data_rows[1:]:  # ignore first row because is with headers
+            list_of_table_data = row.find_elements(By.TAG_NAME, 'td')
+            self.assertEqual(list_of_table_data[-1].text, 'Stock Expired')
+
+        # check that the expired stocks no longer exist in the database
+        for i in range(len(random_5_stock_rows)):
+            self.assertFalse(AvailableStock.objects.filter(
+                available_product=Products.objects.filter(
+                    cod_material=random_5_stock_rows.iloc[i]['Material']).get()
+            ).exists())
 
 
 
-        # self.make_offer(random_rows.iloc[0][''])
+
+
+
+
 
 
