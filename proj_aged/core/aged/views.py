@@ -5,6 +5,8 @@ from .models import *
 from django.contrib.auth.decorators import user_passes_test
 from django.core.files.storage import FileSystemStorage # deals with file stored on drive
 from django.http import HttpResponse # returns files to download
+import datetime
+import textwrap
 
 # Aged stock xlsx file processing functions
 from .lab.Aged_stock import check_if_file_was_already_uploaded,\
@@ -13,12 +15,6 @@ from .lab.Aged_stock import check_if_file_was_already_uploaded,\
       put_stock_location_in_database,\
       put_products_in_the_database,\
       put_available_stock_in_the_database
-from .lab.tasks import code_already_run_today, \
-      delete_expired_stock_and_mark_offered_as_stock_expired
-
-from .lab.writePdfOffer import PdfOfferCreator
-import datetime
-import textwrap
 
 # Salespeople, accounts xlsx file processing functions
 from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
@@ -29,7 +25,15 @@ from .lab.Sales_people_and_their_accounts2 import only_one_tab_check, \
     create_customer_care_accounts, \
     create_customer_accounts
 
-# homepage
+# automated task related functions
+from .lab.tasks import code_already_run_today, \
+      delete_expired_stock_and_mark_offered_as_stock_expired, \
+      find_offers_that_expire_today_and_return_the_quantity_to_available_stock
+
+# pdf maker for the offer
+from .lab.writePdfOffer import PdfOfferCreator
+
+
 @login_required
 def homepage(request):
     if request.user.is_superuser:
@@ -532,8 +536,8 @@ def stock_help(request):
 @user_passes_test(lambda u: u.get_username() == 'Testbot')
 def run_tasks(request):
     """
-    Requires a superuser called Testbot
-    Removes expired PRODUCTS from all stock table
+    Requires a user called Testbot
+    Removes expired stock
     Sets offers that contain expired PRODUCTS stock_expired field to True
     Removes expired OFFERS and moves quantity back in available stock
 
@@ -551,44 +555,6 @@ def run_tasks(request):
     if not code_already_run_today():
         # Delete expired products from available stock + mark the offers as containing expired stock
         delete_expired_stock_and_mark_offered_as_stock_expired()
-    #     print('the function delete_expired_stock_and_mark_offered_as_stock_expired run')
-    #     # # Find OFFERS that expire today and change their status to expired
-        # # Return the quantity to available stock
-        # expiredOfferStockToReturn = OffersLog.objects.filter(expiration_date_of_offer__lt=today_date).all()
-        # for stock in expiredOfferStockToReturn:
-        #     # doar ca sa ma asigur ca nu operez din gresealade doua ori pe acelasi stock, verific sa nu fie 'Offer expired'
-        #     if stock.offer_status != 'Offer Expired':
-        #         kgBlockedInOffer = stock.offered_sold_or_declined_quantity_kg
-        #
-        #         # verifica daca stocul nu a expirat si a fost sters (this should not happen in the wild)
-        #         if stock.offered_stock != None: # daca stocul e expirat, e None
-        #             # returnuie cantitatea din oferta expirata in stockul original
-        #             # in stocul original sunt mai multe fielduri care arata unde e stocul
-        #             # (o parte din stock poate fi disponibila, o alta e under offer, o alta e sold)
-        #             # bucata asta de cod cauta sa returnuie in stocul disponibil (NU in logul cu oferte)
-        #             # cantitatea oferita
-        #             availabelStockObject = stock.offered_stock
-        #             availabelStockObject.under_offer_quantity_in_kg -= kgBlockedInOffer
-        #             availabelStockObject.available_quantity_in_kg += kgBlockedInOffer
-        #             availabelStockObject.save()
-        #         else: # daca stocule e expirat
-        #             stock.stock_expired = True
-        #         # modifica statusul si data outcomeului in Offers log
-        #         stock.offer_status = 'Offer Expired'
-        #         stock.date_of_outcome = today_date - datetime.timedelta(days=1) # practic stocul a explicat ieri seara, dar eu il verific a doua zi dimineata
-        #         stock.save()
-        #
-        #
-        #
-        #
-        # # TASK 3 - sterge din offers log toate ofertele mai vechi de un an (365 zile), doar ca codul ruleaza a doua zi dimineata
-        # dataDeAcumUnAn = today_date - datetime.timedelta(days=366)
-        # oferteMaiVechiDe365Zile = OffersLog.objects.filter(date_of_offer__lte=dataDeAcumUnAn).all()
-        # if len(oferteMaiVechiDe365Zile)>0: # daca exista oferte mai vechi
-        #     for oferta in oferteMaiVechiDe365Zile:
-        #         oferta.delete()
+        find_offers_that_expire_today_and_return_the_quantity_to_available_stock()
 
-        # save the date in the database to mark that the operations have been done today
-        # dt = AFostVerificatAzi(expiredOferedStock=today_date)
-        # dt.save()
     return render(request, 'aged/teste.html')

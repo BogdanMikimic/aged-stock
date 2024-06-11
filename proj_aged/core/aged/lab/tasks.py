@@ -26,3 +26,25 @@ def delete_expired_stock_and_mark_offered_as_stock_expired() -> None:
             offer_containing_expired_stock.stock_expired = True
             offer_containing_expired_stock.save()
         expired_stock.delete()
+
+
+def find_offers_that_expire_today_and_return_the_quantity_to_available_stock() -> None:
+    # Return the quantity to available stock
+
+    # astea is ofertele expirate
+    expired_offer_stock_to_return = OffersLog.objects.filter(expiration_date_of_offer__lt=datetime.date.today()).all()
+    for stock in expired_offer_stock_to_return:
+        # check if the available stock itself is not expired and has not been removed
+        if stock.stock_expired is False:
+            # quantity locked in offer
+            quantity_blocked_in_offer = stock.offered_sold_or_declined_quantity_kg
+            # return the quantity locked in the offer to the available stock
+            available_stock = stock.offered_stock
+            available_stock.under_offer_quantity_in_kg -= quantity_blocked_in_offer
+            available_stock.available_quantity_in_kg += quantity_blocked_in_offer
+            available_stock.save()
+
+            # modify the status of the offer
+            stock.offer_status = 'Offer Expired'
+            stock.date_of_outcome = datetime.date.today() - datetime.timedelta(days=1) # offered expired at EOB, but check is done after 12 AM
+            stock.save()
