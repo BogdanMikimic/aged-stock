@@ -1039,16 +1039,9 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
                                                                  'aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
         # he also keeps the xlsx handy
         self.aged_stock_xlsx_dataframe = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
-
-
-    def tearDown(self) -> None:
-        self.browser.quit()
-
-    def test_expired_stock_is_removed_and_offers_containing_the_stock_are_marked_expired(self):
         # he asks Morgan to make 4 offers
-        # he selects 5 stocks at random form the xlsx file
-        my_stocks_xlsx = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
-        random_5_stock_rows = my_stocks_xlsx.sample(n=5)
+        # he selects 5 stocks at random form the xlsx file        
+        self.random_5_stock_rows = self.aged_stock_xlsx_dataframe.sample(n=5)
         # and he asks Morgan to make some offers for 4 of them
         # Morgan logs in her account
         self.log_in_account('Morgan')
@@ -1068,13 +1061,13 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
             # she navigates to the page with available stock
             self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
             # she chose the first/next material from the 3 in the materials list
-            material = random_5_stock_rows.iloc[j]['Material']
+            material = self.random_5_stock_rows.iloc[j]['Material']
             # she clicks the button to make an offer for the selected material
             self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
             # she makes an offer for the first/next material addressed to her first/next customer in her list
             # she makes sure that the offered quantity is in the selected available range
             self.make_offer(four_customers_list[j],
-                            str(random.randrange(int(random_5_stock_rows.iloc[j]['Quantity']))),
+                            str(random.randrange(int(self.random_5_stock_rows.iloc[j]['Quantity']))),
                             '1.5',
                             '1.5',
                             self.my_offer_date())
@@ -1087,20 +1080,25 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
         self.assertEqual(len(self.browser.find_elements(By.CLASS_NAME, 'table_sku')), 4)
 
         # she marks the first one as sold
-        material = random_5_stock_rows.iloc[0]['Material']
-        self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
+        self.material = self.random_5_stock_rows.iloc[0]['Material']
+        self.browser.find_element(By.XPATH, f"//tr[td[text()='{self.material}']]//a[@class='a_menu_make_offer']").click()
         self.browser.find_element(By.NAME, 'sold').click()
 
-
         # and she marks the second one as declined
-        material = random_5_stock_rows.iloc[1]['Material']
-        self.browser.find_element(By.XPATH, f"//tr[td[text()='{material}']]//a[@class='a_menu_make_offer']").click()
+        self.material = self.random_5_stock_rows.iloc[1]['Material']
+        self.browser.find_element(By.XPATH, f"//tr[td[text()='{self.material}']]//a[@class='a_menu_make_offer']").click()
         self.browser.find_element(By.NAME, 'declined').click()
 
-        ## we'll go into the database search for the offered materials and change their expiration date to yesterday
-        for i in range(len(random_5_stock_rows)):
+    def tearDown(self) -> None:
+        self.browser.quit()
+
+    def test_expired_stock_is_removed_and_offers_containing_the_stock_are_marked_expired(self):
+
+        ## we'll go into the database, search for the offered materials and change their expiration
+        ## date to yesterday
+        for i in range(len(self.random_5_stock_rows)):
             expired_stock = AvailableStock.objects.filter(
-                available_product=Products.objects.filter(cod_material=random_5_stock_rows.iloc[i]['Material']).get()).get()
+                available_product=Products.objects.filter(cod_material=self.random_5_stock_rows.iloc[i]['Material']).get()).get()
             expired_stock.expiration_date = datetime.date.today() - datetime.timedelta(days=1)
             expired_stock.save()
 
@@ -1110,7 +1108,7 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
         # and access the page
         self.browser.get(self.live_server_url + '/run_tasks/')
 
-        # sign back in as the Morgan
+        # sign back in as Morgan
         self.log_in_account('Morgan')
 
         # check that the task run by checking the database marked that it run
@@ -1123,11 +1121,53 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
             self.assertEqual(list_of_table_data[-1].text, 'Stock Expired')
 
         # check that the expired stocks no longer exist in the database
-        for i in range(len(random_5_stock_rows)):
+        for i in range(len(self.random_5_stock_rows)):
             self.assertFalse(AvailableStock.objects.filter(
                 available_product=Products.objects.filter(
-                    cod_material=random_5_stock_rows.iloc[i]['Material']).get()
+                    cod_material=self.random_5_stock_rows.iloc[i]['Material']).get()
             ).exists())
+
+
+    def test_expired_offers_are_correctly_processed(self):
+        ## we'll go into the database, and make the offered offers expired
+        for stock in OffersLog.objects.filter(offer_status='Offered').all():
+            stock.expiration_date_of_offer = datetime.date.today() - datetime.timedelta(days=1)
+            stock.save()
+        # log in as test bot
+        self.log_in_account('Testbot')
+        # and access the page that runs the tasks
+        self.browser.get(self.live_server_url + '/run_tasks/')
+
+        # sign back in as Morgan
+        self.log_in_account('Morgan')
+
+        # check that the task run by checking the database marked that it run
+        self.assertEqual(AFostVerificatAzi.objects.latest('id').expiredOferedStock, datetime.date.today())
+        # check the status of the offers in existing offers is 'Stock Expired'
+        self.browser.get(self.live_server_url + '/existing_offers/')
+        # check the materials for offers that were not sold or rejected
+        material_1 = self.random_5_stock_rows.iloc[2]['Material']
+        material_2 = self.random_5_stock_rows.iloc[3]['Material']
+        self.assertTrue(self.browser.find_element(
+            By.XPATH, f"//tr[td[text()='{material_1}'] and td[text()='Offer Expired']]"))
+        self.assertTrue(self.browser.find_element(
+            By.XPATH, f"//tr[td[text()='{material_2}'] and td[text()='Offer Expired']]"))
+
+        # navigate to the all stock page
+        self.browser.find_element(By.LINK_TEXT, 'Available stock').click()
+        # select the quantities corresponding to each material
+        quantity_1 = self.random_5_stock_rows.iloc[2]['Quantity']
+        quantity_2 = self.random_5_stock_rows.iloc[3]['Quantity']
+        # and check that the offered quantity has been returned to the stock,
+        # leaving the stock at their initial quantity
+        self.assertTrue(self.browser.find_element(
+            By.XPATH, f"//tr[td[text()='{material_1}'] and td[text()='{quantity_1} kg']]"))
+        self.assertTrue(self.browser.find_element(
+            By.XPATH, f"//tr[td[text()='{material_2}'] and td[text()='{quantity_2} kg']]"))
+
+
+
+
 
 
 

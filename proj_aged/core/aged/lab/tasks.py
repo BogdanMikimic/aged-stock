@@ -35,7 +35,7 @@ def find_offers_that_expire_today_and_return_the_quantity_to_available_stock() -
     expired_offer_stock_to_return = OffersLog.objects.filter(expiration_date_of_offer__lt=datetime.date.today()).all()
     for stock in expired_offer_stock_to_return:
         # check if the available stock itself is not expired and has not been removed
-        if stock.stock_expired is False:
+        if stock.stock_expired is False and stock.stock_expired != 'Offered':
             # quantity locked in offer
             quantity_blocked_in_offer = stock.offered_sold_or_declined_quantity_kg
             # return the quantity locked in the offer to the available stock
