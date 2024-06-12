@@ -1,9 +1,13 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-# Create your models here.
+# For more information about the database structure, please see the database_schema.jpg
 #-------------------------Legate de produs---------------------------
 class Brands(models.Model):
+    """
+    Stores brand names. There is a small number of brands, so brands are not
+    deleted by hand.
+    """
     brand = models.CharField(max_length=100)
 
     def __str__(self):
@@ -13,7 +17,11 @@ class Brands(models.Model):
         verbose_name_plural = 'Brands'
 
 class MaterialType(models.Model):
-    #chocolate, filling, nuts
+    """
+    Stores material types - things like chocolate, cocoa, nuts.
+    There is a small number of material types, so material types
+    are not deleted automatically.
+    """
     material_type = models.CharField(max_length=100)
 
     def __str__(self):
@@ -23,9 +31,11 @@ class MaterialType(models.Model):
         verbose_name_plural = 'Material types (chocolate, nuts, etc)'
 
 class Products(models.Model):
-    #product is linked to brand
-    #cod material inseamna codul ala din multe litere si cifre
-    #produsele nu se sterg din baza de date, nici daca nu mai exista -> sunt folosite in OffersLog
+    """
+    Stores product names. There is a finite number of products, and they do not change significantly,
+    over time, so they can be deleted by hand.
+    Each product is inked to a brand and a material type.
+    """
     cod_material = models.CharField(max_length=100)
     description = models.CharField(max_length=200, null=True, blank=True)
     product_brand = models.ForeignKey(Brands, null=True, blank=True, on_delete=models.SET_NULL)
@@ -38,6 +48,11 @@ class Products(models.Model):
         verbose_name_plural = 'Products'
 
 class LocationsForStocks(models.Model):
+    """
+    Location of products refers to a certain warehouse.
+    There is a small number of warehouses available, that rarely change,
+    so they are not deleted automatically.
+    """
     location_of_stocks = models.CharField(max_length=100)
 
     def __str__(self):
@@ -48,12 +63,10 @@ class LocationsForStocks(models.Model):
 
 class CustomerService(models.Model):
     """
-    Each customer account is linked to a customer care representative.
-    Each customer care representative appears on the offer
+    Each customer account is linked to a customer care representative (customer service).
+    Each customer care representative appears on the offer.
     """
     customer_service_rep = models.CharField(max_length=100)
-    # STATUS_CHOICES = ( ('Active', 'Active'), ('Closed', 'Closed'), ('Inactive', 'Inactive'), )
-    # c_serv_status = models.CharField(max_length=10, choices=STATUS_CHOICES)
 
     def __str__(self):
         return self.customer_service_rep
@@ -62,8 +75,10 @@ class CustomerService(models.Model):
         verbose_name_plural = 'Customer service reps'
 
 class Customers(models.Model):
-    #each customer is linked to a sales person and a customer care person
-    #Customers nu se sterg din baza de date, nici daca nu mai exista -> sunt folosite in OffersLog
+    """
+    Existing customers.
+    """
+
     customer_name = models.CharField(max_length=100)
     customer_number = models.IntegerField()
     salesperson_owning_account = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
@@ -90,7 +105,10 @@ class CheckIfFileWasAlreadyUploaded(models.Model):
         verbose_name_plural = 'Date Aged Stock xlsx file was created'
 
 class AvailableStock(models.Model):
-    # stock is linked to product and location
+    """
+    This is the aged stock available to sell. Is linked to Products and locations for stocks
+    When the stock expires, is deleted.
+    """
     available_product = models.ForeignKey(Products, null=True, blank=True, on_delete=models.RESTRICT)
     stock_location = models.ForeignKey(LocationsForStocks, null=True, blank=True, on_delete=models.RESTRICT)
     expiration_date = models.DateField()
@@ -108,6 +126,9 @@ class AvailableStock(models.Model):
 
 
 class OffersLog(models.Model):
+    """
+    Offers represent quantities of product from the available stock offered to the customers.
+    """
     sales_rep_that_made_the_offer = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     offered_stock = models.ForeignKey(AvailableStock, null=True, on_delete=models.SET_NULL)
     offered_product = models.ForeignKey(Products, on_delete=models.RESTRICT)
@@ -126,16 +147,14 @@ class OffersLog(models.Model):
     date_of_outcome = models.DateField(null=True, blank=True)
     stock_expired = models.BooleanField(default=False)
 
-    # def __str__(self):
-    #     return self.customer_that_received_offer
-
     class Meta:
         verbose_name_plural = 'Offers log'
 
 class AFostVerificatAzi(models.Model):
-    # in views sunt taskuri care ruleaza automat prin accesarea unor url-uri
-    # ca sa nu ruleze codul ori de de cate ori e accesat url-ul pun un if
-    # care verifica daca azi s-a rulat codul respectiv
+    """
+    Automated tasks are supposed to run once a day.
+    This model keeps track if the task already ran.
+    """
     expiredOferedStock = models.DateField()
 
     def __str__(self):
