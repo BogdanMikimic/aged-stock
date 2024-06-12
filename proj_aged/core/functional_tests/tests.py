@@ -969,6 +969,7 @@ class SuperUserSalespeopleCheck(StaticLiveServerTestCase, MixinFunctions):
         select.select_by_visible_text('Morgan')
         self.browser.find_element(By.CLASS_NAME, 'input_submit_superuser_form').click()
         # and now he only sees 3 table rows
+
         self.assertEqual(len(self.browser.find_elements(By.TAG_NAME, 'tr')), 4)  # one table row is for table headers
         # he checks that they all belong to Morgan
         table_rows = self.browser.find_elements(By.TAG_NAME, 'tr')

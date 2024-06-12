@@ -10,7 +10,7 @@
 <div class="div_menu_no_border">
   <p class="p_menu">Hi {{user}}, </p>
   <p class="p_menu">Here is the report of pending and closed offers:</p>
-  {% if objects|length > 0 %}
+  {% if list_of_offers_corresponding_to_the_interval|length > 0 %}
   <p class="p_div_filter" id="p_filter_message">By default it shows offers made in the last 60 days, and 30 days in the future (if for example someone created an offer today to present to their clients next week)</p>
 
   <form class="div_superuser_filter" method="post">
@@ -18,9 +18,9 @@
     <div class="div_indiv_field_superus_form">
       <label class="label_form" for="">Select salesperson</label>
       <select class="inputs_superuser_form" name="nameOfUser">
-        <option value="{{ preselectValues.salesperson }}">{{ preselectValues.salesperson }}</option>
-        {% for usr in allUsersWithOffers %}
-        {% if usr != preselectValues.salesperson %}
+        <option value="{{ preselect_values.salesperson }}">{{ preselect_values.salesperson }}</option>
+        {% for usr in all_users_with_offers %}
+        {% if usr != preselect_values.salesperson %}
         <option value="{{ usr }}">{{ usr }}</option>
         {% endif %}
         {% endfor %}
@@ -30,9 +30,9 @@
     <div class="div_indiv_field_superus_form">
       <label class="label_form" for="">Select offer status</label>
       <select class="inputs_superuser_form" name="offerStatus">
-        <option value="{{ preselectValues.state }}">{{ preselectValues.state }}</option>
-        {% for offer in allOfferStatus %}
-        {% if offer != preselectValues.state %}
+        <option value="{{ preselect_values.state }}">{{ preselect_values.state }}</option>
+        {% for offer in all_offer_status %}
+        {% if offer != preselect_values.state %}
         <option value="{{ offer }}">{{ offer }}</option>
         {% endif %}
         {% endfor %}
@@ -41,12 +41,12 @@
 
     <div class="div_indiv_field_superus_form">
       <label class="label_form" for="">Select start date</label>
-      <input class="inputs_superuser_form" id="start" type="date" name="startDate" value="{{ preselectValues.start }}" min='2022-01-01'>
+      <input class="inputs_superuser_form" id="start" type="date" name="startDate" value="{{ preselect_values.start }}" min='2022-01-01'>
     </div>
 
     <div class="div_indiv_field_superus_form">
       <label class="label_form" for="">Select end date</label>
-      <input class="inputs_superuser_form" id="stop" type="date" name="endDate" value="{{ preselectValues.end }}" min='2022-01-01'>
+      <input class="inputs_superuser_form" id="stop" type="date" name="endDate" value="{{ preselect_values.end }}" min='2022-01-01'>
     </div>
 
     <div class="div_indiv_field_superus_form">
@@ -68,7 +68,7 @@
       <th class="table_status_sold">Offer expires</th>
       <th>Date of outcome</th>
     </tr>
-    {% for obj in objects %}
+    {% for obj in list_of_offers_corresponding_to_the_interval %}
     <tr>
       <td class="table_sales_rep">{{ obj.sales_rep_that_made_the_offer }}</td>
       <td class="table_sku">{{ obj.offered_stock }}</td>

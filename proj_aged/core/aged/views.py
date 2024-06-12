@@ -245,9 +245,9 @@ def make_offer(request, itm_id):
 
             offer_date_as_str = request.POST.get('date_of_offer')
             date_of_offer = datetime.datetime.fromisoformat(offer_date_as_str).date()
-            #expiration date is offer date + 7 days
+            # expiration date is offer date + 7 days
             expire_date_of_offer = date_of_offer + datetime.timedelta(days=7)
-
+            # creates the offer
             log_entry = OffersLog(
                         sales_rep_that_made_the_offer=User.objects.filter(username=request.user.get_username()).get(),
                         offered_stock=the_specific_stock,
@@ -449,83 +449,94 @@ def modify_existing_offer(request, offer_id, mess):
 # Opens the page where superusers can see the reports of who sold what, what is under offer, declined, etc
 @user_passes_test(lambda u: u.is_superuser)
 def superuser_reports(request):
-    # if you chose a certain value in one of the filters (such as a certain salesperson)
-    # you will be served a page where the value will be prefilled (ie. if you filter by Sarah the filter will stay on Sarah )
+    """
+    The function displays and manages superuser report and various filters
+    """
+    # you will be served a page where the value will be prefilled
+    # (ie. if you filter by Sarah the filter will stay on Sarah)
     # that is what the dict does
-    preselectValues = dict()
-    preselectValues['salesperson'] = 'All'
-    preselectValues['state'] = 'All'
-    preselectValues['start'] = ''
-    preselectValues['end'] = ''
-    # data standard e cu 60 de zile in urma + 30 de zile in viitor pt cei care au pregatit oferte pt saptamana viitoare
-    aziPlus30 = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
-    firstDateOfOffersSpan = str(datetime.datetime.today().date() - datetime.timedelta(days=60))
-    obj = OffersLog.objects.filter(date_of_offer__range=[firstDateOfOffersSpan, aziPlus30]).all()
+    preselect_values = dict()
+    preselect_values['salesperson'] = 'All'
+    preselect_values['state'] = 'All'
+    preselect_values['start'] = ''
+    preselect_values['end'] = ''
+    # the standard date is between 60 days in the past and 30 days in the future (if someone prepared an offer
+    # for next week)
+    today_plus_30_days_end_of_interval = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
+    today_minus_60_days_beginning_date_of_interval = str(datetime.datetime.today().date() - datetime.timedelta(days=60))
+    list_of_offers_corresponding_to_the_interval = OffersLog.objects.filter(date_of_offer__range=[today_minus_60_days_beginning_date_of_interval, today_plus_30_days_end_of_interval]).all()
 
-    # creez doua seturi ca sa elimin duplicatele de nume (ie daca Sarah are mai multe oferte, numele ei sa apara o data)
-    # al doilea set e statusul posibil al ofertelor bazat pe populatia din baza de date (ie, daca nu exista nimeni cu sold, sold nu apare printre optiuni)
-    allUsersWithOffers = set()
-    allOfferStatus = set()
+    # create a set to eliminate name duplications (ie if Sarah has multiple offers, her name should only appear once)
+    # this is used in the drop-down where you can filter by name
+    all_users_with_offers = set()
+    # this is for offer status drop down - if no offer is sold for example, no sold offer option will appear in the
+    # drop-down
+    all_offer_status = set()
     # populez seturile
-    for ob in obj:
-        allUsersWithOffers.add(ob.sales_rep_that_made_the_offer.username)
-        allOfferStatus.add(ob.offer_status)
+    for offer in list_of_offers_corresponding_to_the_interval:
+        all_users_with_offers.add(offer.sales_rep_that_made_the_offer.username)
+        all_offer_status.add(offer.offer_status)
 
     # seturile nu sunt ordonate si nu contin varianta 'All', asa ca le fac lista, sortez si adaug 'All'
-    allUsersWithOffers = list(allUsersWithOffers)
-    allUsersWithOffers.sort()
-    allUsersWithOffers.insert(0, 'All')
+    all_users_with_offers = list(all_users_with_offers)
+    all_users_with_offers.sort()
+    all_users_with_offers.insert(0, 'All')
 
-    allOfferStatus = list(allOfferStatus)
-    allOfferStatus.sort()
-    allOfferStatus.insert(0, 'All')
+    all_offer_status = list(all_offer_status)
+    all_offer_status.sort()
+    all_offer_status.insert(0, 'All')
 
     if request.method == 'POST':
         stateOfOffers = request.POST.get('offerStatus')
-        preselectValues['state'] = stateOfOffers
+        preselect_values['state'] = stateOfOffers
 
-        nameOfUser = request.POST.get('nameOfUser')
-        preselectValues['salesperson'] = nameOfUser
+        name_of_user = request.POST.get('nameOfUser')
+        preselect_values['salesperson'] = name_of_user
 
         start = request.POST.get('startDate')
         end = request.POST.get('endDate')
 
-        # no start or end
+        # no start or end date provided in the time filter
         if start == '' and end =='':
-            # ultimele doua luni doar
-            start = firstDateOfOffersSpan
+            # go to standard 60 days in the past and 30 in the future
+            start = today_minus_60_days_beginning_date_of_interval
             end = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
         # start, no end
         elif start != '' and end == '':
             end = str(datetime.datetime.today().date() + datetime.timedelta(days=30))
         # end no start
         elif start == '' and end != '':
-            start = firstDateOfOffersSpan
+            start = today_minus_60_days_beginning_date_of_interval
         # start and end
         elif start != '' and end != '':
             pass
 
-        preselectValues['start'] = start
-        preselectValues['end'] = end
+        preselect_values['start'] = start
+        preselect_values['end'] = end
 
-        if nameOfUser != 'All':
-            idOfUser = User.objects.filter(username=nameOfUser).get().id
-            obj = OffersLog.objects.filter(date_of_offer__range=[start, end], sales_rep_that_made_the_offer=idOfUser).all()
+        # shows a particular user in the time interval
+        if name_of_user != 'All':
+            id_of_user = User.objects.filter(username=name_of_user).get().id
+            list_of_offers_corresponding_to_the_interval = OffersLog.objects.filter(date_of_offer__range=[start, end],
+                                                                                    sales_rep_that_made_the_offer=id_of_user).all()
             if stateOfOffers != 'All':
-                obj = OffersLog.objects.filter(date_of_offer__range=[start, end], sales_rep_that_made_the_offer=idOfUser, offer_status=stateOfOffers).all()
+                list_of_offers_corresponding_to_the_interval = OffersLog.objects.filter(date_of_offer__range=[start, end],
+                                                                                        sales_rep_that_made_the_offer=id_of_user,
+                                                                                        offer_status=stateOfOffers).all()
 
-        # search for a particular user
-        elif nameOfUser == 'All':
-            obj = OffersLog.objects.filter(date_of_offer__range=[start, end]).all()
+        # show all users in the item interval
+        elif name_of_user == 'All':
+            list_of_offers_corresponding_to_the_interval = OffersLog.objects.filter(date_of_offer__range=[start, end]).all()
             if stateOfOffers != 'All':
-                obj = OffersLog.objects.filter(date_of_offer__range=[start, end], offer_status=stateOfOffers).all()
+                list_of_offers_corresponding_to_the_interval = OffersLog.objects.filter(date_of_offer__range=[start, end],
+                                                                                        offer_status=stateOfOffers).all()
 
     return render(request,
                   'aged/superuser_reports.html',
-                  {'objects': obj,
-                          'allUsersWithOffers': allUsersWithOffers,
-                          'allOfferStatus': allOfferStatus,
-                          'preselectValues': preselectValues})
+                  {'list_of_offers_corresponding_to_the_interval': list_of_offers_corresponding_to_the_interval,
+                          'all_users_with_offers': all_users_with_offers,
+                          'all_offer_status': all_offer_status,
+                          'preselect_values': preselect_values})
 
 @login_required
 def stock_help(request):
