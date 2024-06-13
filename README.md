@@ -1,10 +1,10 @@
 # Stock management tool
 This application is a tiered web tool designed for aged stock management, catering to three user levels: admins, managers, and salespeople. 
-Its core function is to facilitate the creation and management of stock offers 
+Its core function is to facilitate the creation and management stock offers 
 nearing expiration date (called aged stock). It also embeds reporting, so managers can oversee the teams
 activity without requiring the salespeople to fill in activity reports. The database schema and architecture
 is designed to be extended to include automated email communication, data backups, machine learning and
-data analysis algorithms that were not included in this version.
+data analysis algorithmsa s well as a help page that were not included in this version.
 
 
 ## User Access: 
@@ -12,10 +12,10 @@ Only pre-existing accounts can access the tool, with account creation exclusive 
 There are 3 types of accounts:
 * salespeople (as users)
 * managers (as superusers)
-* admin (as a superuser called Mikimic)
+* admin (as a superuser called Mikimic - must be called so)
 
 ## App flow and features
-### The special admin (username Mikimic) position
+### The special admin (username Mikimic) user
 #### I. Superuser Mikimic uploads customer and sales reps from a xlsx file, and creates user and superuser accounts
 * admin (Mikimic) logs into his account where he has an extra button where he can upload 3 types of xlsx files (only 2 are implemented, the one for historic data is not)
 * first type is a xlsx containing information about customers, salespeople and managers - this is always the latest situation about what sales people, customer care reps and customers the company has
@@ -37,10 +37,30 @@ There are 3 types of accounts:
 * the stock available in the xlsx is not always accurate, so if the stock already exists in the database,it is trusted to be the right quantity
 * the unique identifiers of a stock are the SKU (the code of the material), the batch number and the expiration data. No 2 stocks come from the same batch with the same expiration date in different quantities
 * AvailableStock is linked by foreign key to LocationsForStocks and Products, so these need to be uploaded first
-### Normal users (salespeople)
+### Normal users (salesperson)
+#### The "all stock" page
+* Regular users have access to an "all stock page" that presents all the available stock, ordered descending by expiration date
+* At the top of the page, the user has access to filters - which are auto-generated checkboxes, based on the existing
+material categories (cocoa, chocolate, etc)
+* The system is set to hide sold and under offer products by default
+* There is a search bar that allows searching for products, that works together with the filters
+* Next to each product, there is a button that allows the user to create an offer for that specific stock
+#### Order creation form
+* Clicking the button opens up a form where the user can select one of its customers (only it's customers are available
+to him, select a part or all of the quantity available, select a price, a discount, a date for the offer -that can be in the future
+(offers expire in 7 calendar days)
+* If another user fills in a form to offer the same product, and the current offer no longer has the
+needed quantity available, the user is redirected to a page that allows him to re-make the offer with
+a new quantity (if there is some of the stock available) or to a page that lets him know there is no
+stock available
+* upon successful completion of the form, he is redirected to a page where he is presented with
+the option to download the offer as a pdf
+#### Order confirmation and PDF
+* the user has another   
 
 ### Superusers (managers)
 
+### Tasks
 
 ## Unit and functional tests
 * unit tests: see proj_aged/core/aged/tests.py  
@@ -55,3 +75,9 @@ when running the tests. So make sure to modify the expiration dates and place th
 in the xlsx files (01_good_AgedStock.xlsx which is the main file that contains the complete dataset, 
 but the other ones containing the AgedStock words are used too for different tests).
 
+## Install and run
+* copy this repository
+* create a virtual environment
+
+## Notes
+* not responsive - works best on large resolutions ()
