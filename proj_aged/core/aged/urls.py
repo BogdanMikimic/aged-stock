@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
             path('', views.homepage, name='home'),
-	        path('accounts/', include('django.contrib.auth.urls')),
+	        # path('accounts/', include('django.contrib.auth.urls')),
             path('superuser_reports/', views.superuser_reports, name='superuser_reports'),
             path('all_available_stock/', views.all_available_stock, name='all_available_stock'),
             path('make_offer/<str:itm_id>', views.make_offer, name='make_offer'),
