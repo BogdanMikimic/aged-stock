@@ -14,7 +14,7 @@ There are 3 types of accounts:
 * managers (as superusers)
 * admin (as a superuser called Mikimic - must be called so)
 
-## App flow and features
+## App flow and features:
 ### The special admin (username Mikimic) user
 #### I. Superuser Mikimic uploads customer and sales reps from a xlsx file, and creates user and superuser accounts
 * admin (Mikimic) logs into his account where he has an extra button where he can upload 3 types of xlsx files (only 2 are implemented, the one for historic data is not)
@@ -76,8 +76,40 @@ in the xlsx files (01_good_AgedStock.xlsx which is the main file that contains t
 but the other ones containing the AgedStock words are used too for different tests).
 
 ## Install and run
+* it requires Python 3.11
 * copy this repository
-* create a virtual environment
+* create and activate a virtual environment
+* install all the needed dependencies from requirements.txt
+> pip install -r requirements.txt
+* navigate to manage.py ('proj_aged/core/manage.py')and make the migrations (it creates the database and populates it)
+> manage.py makemigrations
+> manage.py migrate
+* create a superuser with a username Mikimic 
+> manage.py createsuperuser
+* run the develpoment server
+> manage.py runserver
+* go to your browser and navigate to http://localhost:8000/admin
+* log in as the superuser Mikimic with the account you created
+* go to admin "AUTHENTICATION AND AUTHORIZATION" -> "Users" and under "Personal info" add "First name": Miki, 
+"Last name": Mic 
+* click on the "upload files" button (your database is currently empty)
+* first you need to upload the data from one of the spreadsheets containing data
+about customer care agents customers and salespeople (click on the "(1) Salespeople, customer care agents and customers"). 
+ proj_aged/core/aged/lab/DataSafeOnes, the files beginning with "11_" - "18_". They all contain different information, and they
+are used in tests. Be advised you will be prompted to create accounts manually for
+all salespeople that are not in the database. For security reasons salespeople accounts
+need to be created, modified or deleted manually from the database. You can do that by
+logging in as a superuser (Mikimic), navigate to http://localhost:8000/admin 
+"AUTHENTICATION AND AUTHORIZATION" -> "Users" -> "ADD USER" (or check the user you want to delete,
+and select from the drop-down "Actions" -> "delete selected user" -> press "Go"
+If you want). To avoid creating users, simply upload the "proj_aged/core/aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx",
+where all the existing customers are moved under Mikimic
+* Next, upload the information related to available stocks from the spreadsheets (click on the "(3) Aged stock" button) 
+You can do so by uploading files starting with "00_" "05_" from "proj_aged/core/aged/lab/DataSafeOnes.
+However, depending on when you use the app, the stocks may be expired, and therefore cleaned up upon
+uploading. If you are using this in a year earlier than 2124, you can upload the 
+"proj_aged/core/aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx" file which ensures no stocks are expired
+* that's it, you can now use the app
 
 ## Notes
-* not responsive - works best on large resolutions ()
+* not responsive - works best on large resolutions (1920px x 1080px)
