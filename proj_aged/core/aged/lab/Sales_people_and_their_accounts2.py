@@ -71,14 +71,14 @@ def check_salespeople_in_database(dataframe: object) -> tuple[list[str], list[st
     """
     It checks if all the salespeople in the xlsx exist in the database, if not it returns them to be created.
     It checks if all the salespeople in the database exist in the xlsx, if not they are marked for deletion.
-    If nothing needs to be deleted or created returns a boolean (True)
+    If nothing needs to be deleted or created returns a boolean (False)
     Salespeople accounts need to be created before customers, because they act as a foreign key in customers
     For security the accounts need to be created or deleted manually
 
     :param dataframe: a pandas dataframe
-    :returns: A tuple of lists with accounts to be created or deleted if any or True if none needs to be created
+    :returns: A tuple of lists with accounts to be created or deleted if any or False if none needs to be created
     """
-    customers_in_xlsx_list = dataframe['Sales Rep'].tolist()
+    customers_in_xlsx_list = set(dataframe['Sales Rep'].tolist())
     customers_in_database_raw = User.objects.values('first_name', 'last_name')
     customers_in_database_list = list()
     for customer in customers_in_database_raw:
@@ -91,13 +91,15 @@ def check_salespeople_in_database(dataframe: object) -> tuple[list[str], list[st
             to_be_created.append(customer_in_excel)
     # check accounts to be deleted
     for customer_in_database in customers_in_database_list:
-        if customer_in_database not in customers_in_xlsx_list:
+        # ignore the superuser Miki Mic
+        if customer_in_database != "Miki Mic" and customer_in_database not in customers_in_xlsx_list:
             to_be_deleted.append(customer_in_database)
-
+    # if there are accounts to be created, return a tuple of lists
     if len(to_be_created) > 0 or len(to_be_deleted) > 0:
         return to_be_created, to_be_deleted
+    # if all accounts exist, return False
     else:
-        return True
+        return False
 
 
 def create_customer_care_accounts(dataframe: object) -> None:

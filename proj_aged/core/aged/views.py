@@ -91,7 +91,7 @@ def upload_file_with_sales_people(request):
         file_object.delete(file_name)
 
         # check that all users are in the database and that deleting or creating some is not required
-        if not check_salespeople_in_database(dataframe):
+        if check_salespeople_in_database(dataframe):
             acc_to_create_or_delete = check_salespeople_in_database(dataframe)
             message_create = ''
             accounts_to_create = list()
@@ -99,15 +99,15 @@ def upload_file_with_sales_people(request):
             accounts_to_delete = list()
 
             if len(acc_to_create_or_delete[0]) > 0:
-                message_create = textwrap.dedent('''Customers are linked to sales people,
-                                                   so salespeople accounts need to be created first.
-                                                   The following accounts need to be created:''')
+                message_create = 'Customers are linked to sales people, so salespeople accounts need to be created first.'
+                message_create += ' The following accounts need to be created:'
                 accounts_to_create = acc_to_create_or_delete[0]
             else:
-                message_create = textwrap.dedent('''No sales people account to create''')
+                message_create = 'No sales people account to create'
 
             if len(acc_to_create_or_delete[1]) > 0:
-                message_delete = textwrap.dedent('''There are a few sales people accounts to create:''')
+                message_delete = 'There are a few sales people accounts to delete:'
+                accounts_to_delete = acc_to_create_or_delete[1]
 
             # do_not_use_in_production_automatic_accounts_creation(dataframe)
 
