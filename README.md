@@ -4,7 +4,7 @@ Its core function is to facilitate the creation and management stock offers
 nearing expiration date (called aged stock). It also embeds reporting, so managers can oversee the teams
 activity without requiring the salespeople to fill in activity reports. The database schema and architecture
 is designed to be extended to include automated email communication, data backups, machine learning and
-data analysis algorithmsa s well as a help page that were not included in this version.
+data analysis algorithms as well as a help page that were not included in this version.
 
 
 ## User Access: 
@@ -56,11 +56,41 @@ stock available
 * upon successful completion of the form, he is redirected to a page where he is presented with
 the option to download the offer as a pdf
 #### Order confirmation and PDF
-* the user has another   
+* the user is redirected to a page that allows him to download the offer as a PDF.
+* The pdf is addressed to the customer, has identification information about the offered stock,
+stock expiration date, offer expiration date, unit price, quantity, customer care agent and salesperson
+* If the user chooses not to download the PDF, he can only do so afterward if he selects to modify
+the offer (strictly speaking he can leave the offer as it is)
+#### My offers (existing offers)
+* another page available to the salesperson is the page which shows existing offers
+* existing offers can be filtered by the status of the offer (any combination can be obtained)
+* each offer can be changed by pressing the change button (that will open the order modification page)
+#### Offer modification (Change offer status)
+The "Change offer status" presents the user with 3 options:
+* Change status to sold - automatically changes the status of the offer to sold and returns the user to "My offers" page
+* Change status to declined - automatically changes the status of the offer to declined, releases the stock locked in the offer,
+and returns the user to "My offers" page
+* Change the offer parameters will redirect to a pre-filled order creation form, that functions in the same way described above
 
 ### Superusers (managers)
+#### Reports
+* the superuser (which is a manager and a salesperson) can access the reports page which show the activity of all sales people
+* the superuser can filter the reports by searching for a specific person, or chose to have all of them displayed
+* the superuser can filter by the status of the offer as well, decide to see only active, or rejected, or sold offers
+* the superuser can select a timespan of a day or longer to see specific offers in that were issued in that period.
+By default, the page displays offers done 60 days in the past and 30 days in the future (it is possible to make an offer
+for a future date)
+#### All other functionality
+* The rest of functionality is the same as for the salesperson, since managers are also salespeople that have customers
 
 ### Tasks
+Tasks are pieces of code that run automatically. The tasks in this app are run when a specific user (Testbot)
+makes a request (access) a URL. The URL can be accessed once a day. The code that actually makes the call to
+the url needs to be configured separately based on how you decide to make the request to the URL. The logic
+behind this app was that the call will be made each day at 4 o'clock in the morning.
+* one task checks for expired stock. If the stock is expired, it is removed from available stock
+* one task checks the offers. The offers are available for 7 days. If the offer expires, the stock
+blocked in the offer, is returned to available stock.
 
 ## Unit and functional tests
 * unit tests: see proj_aged/core/aged/tests.py  
