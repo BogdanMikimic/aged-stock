@@ -165,7 +165,7 @@ class MixinFunctions:
         xlsx_upload_field.send_keys(absolute_file_path)
         self.browser.find_element(By.ID, 'id_submit_file').click()
 
-    def upload_aged_salespeople_only(self, relative_path_to_aged_stock_xlsx) -> None:
+    def upload_salespeople_only(self, relative_path_to_aged_stock_xlsx) -> None:
         self.log_in_account('Mikimic')
         self.browser.get(self.live_server_url)
         self.browser.find_element(By.LINK_TEXT, 'Upload Files 🡢').click()
@@ -182,7 +182,7 @@ class MixinFunctions:
                                                             relative_path_to_aged_stock_xlsx: str) -> None:
 
         # first upload the file - with salespeople, customer care agents, and customers
-        self.upload_aged_salespeople_only(relative_path_to_salespeople_xlsx)
+        self.upload_salespeople_only(relative_path_to_salespeople_xlsx)
         # second file (aged stock)
         self.upload_aged_stock_only(relative_path_to_aged_stock_xlsx)
 
@@ -255,18 +255,18 @@ class AdminUploadsSpreadsheetTest(StaticLiveServerTestCase, MixinFunctions):
                          'The file has more than one tab. Fix file and re-upload')
 
         # he goes back and tries again, but this time he uploads a file that holds an empty spreadsheet
-        self.upload_aged_salespeople_only('aged/lab/DataSafeOnes/9_blank_file.xlsx')
+        self.upload_salespeople_only('aged/lab/DataSafeOnes/9_blank_file.xlsx')
         # and this time the error message is different
         self.assertEqual(self.browser.find_element(By.ID, 'upload_status').text,
                          'The file has no data. Fix file and re-upload')
 
         # he goes back and tries again, this time he uploads an older file that does not contain the right headers
-        self.upload_aged_salespeople_only('aged/lab/DataSafeOnes/10_wrong_headers.xlsx')
+        self.upload_salespeople_only('aged/lab/DataSafeOnes/10_wrong_headers.xlsx')
         # and this time the error message is different - telling him about the wrong headers
         self.assertTrue(self.browser.find_element(By.ID, 'upload_status').text.startswith("The file has the wrong headers."))
 
         # he goes back and this time uploads a good file (containing just one salesperson - Mikimic)
-        self.upload_aged_salespeople_only('aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx')
+        self.upload_salespeople_only('aged/lab/DataSafeOnes/16_just_one_sales_rep_mikimic.xlsx')
         # he checks that the file was uploaded successfully
         self.assertEqual(self.browser.find_element(By.ID, 'id_message').text, 'All accounts updated')
 
