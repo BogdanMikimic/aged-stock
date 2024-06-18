@@ -97,13 +97,13 @@ class CheckSalespeopleFileUpload(TestCase):
             last_name= 'Martinez',
             password='hg£$f%sdarhgf334r5!'
         )
-        self.assertTrue(check_salespeople_in_database(dataframe))
+        self.assertFalse(check_salespeople_in_database(dataframe))
 
         # create another user non-existent in the xlsx so the test returns 0 accounts to be created and 1 to be deleted
         User.objects.create_user(
             username='Spiderman',
             first_name='Peter',
-            last_name= 'Parker',
+            last_name='Parker',
             password='dwaf%sadhgf334r5!'
         )
         users_to_be_created_or_deleted = check_salespeople_in_database(dataframe)

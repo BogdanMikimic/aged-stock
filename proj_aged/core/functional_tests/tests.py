@@ -176,6 +176,7 @@ class MixinFunctions:
         xlsx_upload_field.send_keys(absolute_file_path)
         self.browser.find_element(By.ID, 'id_submit_file').click()
 
+
     def admin_uploads_salespeople_and_aged_stock_xlsx_to_db(self,
                                                             relative_path_to_salespeople_xlsx: str,
                                                             relative_path_to_aged_stock_xlsx: str) -> None:
@@ -1028,8 +1029,6 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
         self.browser.implicitly_wait(10)
         # he creates an account for himself
         self.create_account('Miki', 'Mic')
-        # and he creates an account for the bot that has to be named Testbot
-        self.create_account('Testbot', 'Bot')
         # he creates the other accounts required in order to be able to upload his salespeople file
         self.create_account('Morgan', 'Davis', False)
         self.create_account('Alex', 'Martinez', False)
@@ -1038,6 +1037,11 @@ class AutomatedTasksCheck(StaticLiveServerTestCase, MixinFunctions):
         # he uploads the xlsx files in the database
         self.admin_uploads_salespeople_and_aged_stock_xlsx_to_db('aged/lab/DataSafeOnes/18_just_three_sales_people.xlsx',
                                                                  'aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
+
+        # and he creates an account for the bot that has to be named Testbot (this is created here
+        # so it dosen't pop up as an account that needs to be deleted because is not in the spreadsheet
+        self.create_account('Testbot', 'Bot')
+
         # he also keeps the xlsx handy
         self.aged_stock_xlsx_dataframe = self.return_xlsx_dataframe('aged/lab/DataSafeOnes/00_good_AgedStock_good_for_100_years.xlsx')
         # he asks Morgan to make 4 offers
