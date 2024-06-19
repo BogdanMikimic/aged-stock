@@ -23,7 +23,7 @@
     <br>
     <br>
     <label class="label_input">I want to offer a <span class="table_sku">quantity</span> of ({{ stock_item.available_quantity_in_kg }}kg available)</label>
-    <input class="input_offer" type="number" name="quantity" min="0" max="{{ stock_item.available_quantity_in_kg }}" step="1" placeholder="{{ stock_item.available_quantity_in_kg }}kg (max)" required>
+    <input class="input_offer" type="number" name="quantity" min="1" max="{{ stock_item.available_quantity_in_kg }}" step="1" placeholder="{{ stock_item.available_quantity_in_kg }}kg (max)" required>
     <br>
     <br>
     <label class="label_input">At a <span class="table_status_offered">discount</span> of (%)</label>

@@ -101,9 +101,8 @@ expired products, will wipe out all expired products from the database, not to m
 that there is another function that skip expired products in the .xlsx when uploading the
 data in the database in the first place. Most functional tests work by searching for existing 
 products in the tables - which won't be there if the product is expired, so you will get errors
-when running the tests. So make sure to modify the expiration dates and place them in the future
-in the xlsx files (01_good_AgedStock.xlsx which is the main file that contains the complete dataset, 
-but the other ones containing the AgedStock words are used too for different tests).
+when running the tests. So I provided the 00_good_AgedStock_good_for_100_years.xlsx file, which contains
+data that (hopefully) haven't expired yet.
 
 ## Install and run
 * it requires Python 3.11

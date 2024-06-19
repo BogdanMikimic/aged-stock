@@ -21,7 +21,7 @@
     <br>
     <br>
     <label class="label_input">You initially offered <span class="table_sku" > {{ offer.offered_sold_or_declined_quantity_kg }}kg </span> (out of <span class="table_sku" id="total_left_quantity">{{ whole_quantity }}kg </span> avalilable)</label>
-    <input class="input_offer" type="number" name="quantity" min="0" max="{{ whole_quantity }}" step="1" value="{{ offer.offered_sold_or_declined_quantity_kg }}" required>
+    <input class="input_offer" type="number" name="quantity" min="1" max="{{ whole_quantity }}" step="1" value="{{ offer.offered_sold_or_declined_quantity_kg }}" required>
     <br>
     <br>
     <label class="label_input">At a <span class="table_status_offered">discount</span> of <span class="table_status_offered">{{offer.discount_offered_percents}}% </span></label>

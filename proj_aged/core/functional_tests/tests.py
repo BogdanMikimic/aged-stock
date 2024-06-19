@@ -41,7 +41,7 @@ into the database as available stock in the first place.
 Therefore I have provided the "00_good_AgedStock_good_for_100_years.xlsx" file that contains the
 same data as "01_good_AgedStock.xlsx" but has has expiration dates of products pushed 100 years in the future. 
 
-If you are running this more than 100 years in the future - is code archeology a thing now?
+If you are running this more than 100 years in the future - is code archaeology a thing now?
 '''
 print(message)
 
